@@ -12,6 +12,8 @@ using System.Windows.Threading;
 using Newtonsoft.Json;
 using RawPrint;
 using RawPrint.NetStd;
+using System.Drawing.Printing;
+using Restaurants.Helper;
 
 namespace Restaurants.Class
 {
@@ -573,90 +575,74 @@ namespace Restaurants.Class
             PrintToXP80C(printOrder);
         }
 
-        private void PrintToXP80C(PrintOrder order)
+        static void PrintToXP80C(PrintOrder order)
         {
             try
             {
-                // Printer name must match the installed printer name in Windows
-                string printerName = "XP-80C"; // Verify this in Control Panel > Devices and Printers
+                string printerName = "XP-80C";
 
-                // Build the ESC/POS formatted receipt string
+                // Printer borligini tekshirish
+                bool printerExists = false;
+                foreach (string installedPrinter in PrinterSettings.InstalledPrinters)
+                {
+                    if (installedPrinter.Equals(printerName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        printerExists = true;
+                        break;
+                    }
+                }
+
+                if (!printerExists)
+                {
+                    throw new Exception($"\"{printerName}\" nomli printer topilmadi. Iltimos, printer ulanganligini tekshiring.");
+                }
+
+                // ESC/POS formatida chek yaratish
                 StringBuilder receipt = new StringBuilder();
-
-                // ESC/POS initialization
-                receipt.Append("\x1B\x40"); // ESC @ - Initialize printer
-
-                // Center align
-                receipt.Append("\x1B\x61\x01"); // ESC a 1 - Center align
-
-                // Restaurant name (larger font)
-                receipt.Append("\x1D\x21\x11"); // GS ! 11 - Double height & width
+                receipt.Append("\x1B\x40"); // ESC @ - Printerni reset qilish
+                receipt.Append("\x1B\x61\x01"); // Markazga joylash
+                receipt.Append("\x1D\x21\x11"); // Katta font
                 receipt.AppendLine(order.RestaurantName);
-                receipt.Append("\x1D\x21\x00"); // GS ! 00 - Normal size
-
-                // Date and time
+                receipt.Append("\x1D\x21\x00"); // Oddiy font
                 receipt.AppendLine($"{order.OrderDate} {order.OrderTime}");
-
-                // Check number
-                receipt.AppendLine($"Chek #{order.CheckNumber}");
-
-                // Table number
+                receipt.AppendLine($"Chek №{order.CheckNumber}");
                 receipt.AppendLine($"Stol: {order.TableNumber}");
-
-                // Waiter
                 receipt.AppendLine($"Ofitsiant: {order.WaiterName}");
-
-                // Separator
                 receipt.AppendLine(new string('-', 32));
 
-                // Left align for items
-                receipt.Append("\x1B\x61\x00"); // ESC a 0 - Left align
-
-                // Header
-                receipt.AppendLine("№  Nomi             Soni Narxi   Summa");
-                receipt.AppendLine(new string('-', 32));
-
-                // Items
                 int itemNumber = 1;
                 foreach (var item in order.Orders)
                 {
                     string name = item.Nomi.Length > 15 ? item.Nomi.Substring(0, 15) : item.Nomi.PadRight(15);
                     string qty = item.Soni.ToString().PadLeft(4);
-                    string price = FormatCurrency(item.Narxi).PadLeft(7);
-                    string amount = FormatCurrency(item.Summa).PadLeft(7);
+                    string price = item.Narxi.ToString("0.00").PadLeft(7);
+                    string amount = item.Summa.ToString("0.00").PadLeft(7);
                     receipt.AppendLine($"{itemNumber++.ToString().PadLeft(2)} {name} {qty} {price} {amount}");
                 }
 
-                // Separator
                 receipt.AppendLine(new string('-', 32));
+                receipt.Append("\x1B\x61\x02"); // O‘ngga tekislash
+                receipt.AppendLine($"Jami:         {order.TotalAmount:0.00}");
+                receipt.AppendLine($"Xizmat haqi:  {order.ServiceFee:0.00}");
+                receipt.Append("\x1D\x21\x01"); // Katta shrift
+                receipt.AppendLine($"UMUMIY:       {order.GrandTotal:0.00}");
+                receipt.Append("\x1D\x21\x00"); // Normal shrift
 
-                // Right align for totals
-                receipt.Append("\x1B\x61\x02"); // ESC a 2 - Right align
-
-                // Total
-                receipt.AppendLine($"Jami:         {FormatCurrency(order.TotalAmount)}");
-                receipt.AppendLine($"Xizmat haqi:  {FormatCurrency(order.ServiceFee)}");
-
-                // Grand total (larger font)
-                receipt.Append("\x1D\x21\x01"); // GS ! 01 - Double height
-                receipt.AppendLine($"UMUMIY:       {FormatCurrency(order.GrandTotal)}");
-                receipt.Append("\x1D\x21\x00"); // GS ! 00 - Normal size
-
-                // Center align for thank you
-                receipt.Append("\x1B\x61\x01"); // ESC a 1 - Center align
+                receipt.Append("\x1B\x61\x01"); // Markazga joylash
                 receipt.AppendLine("Tashrifingiz uchun rahmat!");
+                receipt.Append("\x1D\x56\x00"); // Qog‘ozni kesish
 
-                // Cut command (full cut)
-                receipt.Append("\x1D\x56\x00"); // GS V 0 - Full cut
+                // Printerga ESC/POS buyrug‘ini yuborish
+                bool result = PrinterHelper.SendStringToPrinter(printerName, receipt.ToString());
 
-                // Print using RawPrint
-                IPrinter printer = new Printer();
-                using (var stream = new System.IO.MemoryStream(Encoding.UTF8.GetBytes(receipt.ToString())))
+                if (result)
                 {
-                    printer.PrintRawStream(printerName, stream, "Receipt");
+                    MessageBox.Show($"Chek №{order.CheckNumber} muvaffaqiyatli chop etildi", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-
-                MessageBox.Show($"Chek №{order.CheckNumber} muvaffaqiyatli chop etildi", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
+                else
+                {
+                    throw new Exception("Printerga ma'lumot yuborishda xatolik yuz berdi.");
+                }
             }
             catch (Exception ex)
             {
