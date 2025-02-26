@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,6 +10,8 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Newtonsoft.Json;
+using RawPrint;
+using RawPrint.NetStd;
 
 namespace Restaurants.Class
 {
@@ -531,9 +534,16 @@ namespace Restaurants.Class
             _ = GetData();
         }
 
+        private decimal GetDecimalValueFromText(string text)
+        {
+            // Extract numeric value from formatted currency text
+            string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "");
+            decimal.TryParse(numericText, out decimal result);
+            return result;
+        }
+
         private void btnPrint_Click(object sender, RoutedEventArgs e)
         {
-            // Your existing print logic
             if (currentSelectedTable <= 0)
             {
                 MessageBox.Show("Chop etish uchun stol tanlang", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -560,267 +570,98 @@ namespace Restaurants.Class
                 GrandTotal = GetDecimalValueFromText(lblTotalValue.Text)
             };
 
-            PrintCheck(printOrder);
+            PrintToXP80C(printOrder);
         }
 
-        private decimal GetDecimalValueFromText(string text)
-        {
-            // Extract numeric value from formatted currency text
-            string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "");
-            decimal.TryParse(numericText, out decimal result);
-            return result;
-        }
-
-        private void PrintCheck(PrintOrder order)
+        private void PrintToXP80C(PrintOrder order)
         {
             try
             {
-                // Create a print dialog
-                var printDialog = new System.Windows.Controls.PrintDialog();
+                // Printer name must match the installed printer name in Windows
+                string printerName = "XP-80C"; // Verify this in Control Panel > Devices and Printers
 
-                // Create print content
-                var printContent = CreatePrintContent(order);
+                // Build the ESC/POS formatted receipt string
+                StringBuilder receipt = new StringBuilder();
 
-                // Apply print settings
-                printContent.Width = printDialog.PrintableAreaWidth;
-                printContent.Height = printDialog.PrintableAreaHeight;
+                // ESC/POS initialization
+                receipt.Append("\x1B\x40"); // ESC @ - Initialize printer
 
-                // Print
-                printDialog.PrintVisual(printContent, $"Check #{order.CheckNumber}");
+                // Center align
+                receipt.Append("\x1B\x61\x01"); // ESC a 1 - Center align
 
-                // Show success message
+                // Restaurant name (larger font)
+                receipt.Append("\x1D\x21\x11"); // GS ! 11 - Double height & width
+                receipt.AppendLine(order.RestaurantName);
+                receipt.Append("\x1D\x21\x00"); // GS ! 00 - Normal size
+
+                // Date and time
+                receipt.AppendLine($"{order.OrderDate} {order.OrderTime}");
+
+                // Check number
+                receipt.AppendLine($"Chek #{order.CheckNumber}");
+
+                // Table number
+                receipt.AppendLine($"Stol: {order.TableNumber}");
+
+                // Waiter
+                receipt.AppendLine($"Ofitsiant: {order.WaiterName}");
+
+                // Separator
+                receipt.AppendLine(new string('-', 32));
+
+                // Left align for items
+                receipt.Append("\x1B\x61\x00"); // ESC a 0 - Left align
+
+                // Header
+                receipt.AppendLine("№  Nomi             Soni Narxi   Summa");
+                receipt.AppendLine(new string('-', 32));
+
+                // Items
+                int itemNumber = 1;
+                foreach (var item in order.Orders)
+                {
+                    string name = item.Nomi.Length > 15 ? item.Nomi.Substring(0, 15) : item.Nomi.PadRight(15);
+                    string qty = item.Soni.ToString().PadLeft(4);
+                    string price = FormatCurrency(item.Narxi).PadLeft(7);
+                    string amount = FormatCurrency(item.Summa).PadLeft(7);
+                    receipt.AppendLine($"{itemNumber++.ToString().PadLeft(2)} {name} {qty} {price} {amount}");
+                }
+
+                // Separator
+                receipt.AppendLine(new string('-', 32));
+
+                // Right align for totals
+                receipt.Append("\x1B\x61\x02"); // ESC a 2 - Right align
+
+                // Total
+                receipt.AppendLine($"Jami:         {FormatCurrency(order.TotalAmount)}");
+                receipt.AppendLine($"Xizmat haqi:  {FormatCurrency(order.ServiceFee)}");
+
+                // Grand total (larger font)
+                receipt.Append("\x1D\x21\x01"); // GS ! 01 - Double height
+                receipt.AppendLine($"UMUMIY:       {FormatCurrency(order.GrandTotal)}");
+                receipt.Append("\x1D\x21\x00"); // GS ! 00 - Normal size
+
+                // Center align for thank you
+                receipt.Append("\x1B\x61\x01"); // ESC a 1 - Center align
+                receipt.AppendLine("Tashrifingiz uchun rahmat!");
+
+                // Cut command (full cut)
+                receipt.Append("\x1D\x56\x00"); // GS V 0 - Full cut
+
+                // Print using RawPrint
+                IPrinter printer = new Printer();
+                using (var stream = new System.IO.MemoryStream(Encoding.UTF8.GetBytes(receipt.ToString())))
+                {
+                    printer.PrintRawStream(printerName, stream, "Receipt");
+                }
+
                 MessageBox.Show($"Chek №{order.CheckNumber} muvaffaqiyatli chop etildi", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Chop etishda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private FrameworkElement CreatePrintContent(PrintOrder order)
-        {
-            // Create a print template
-            var grid = new Grid();
-            grid.Background = Brushes.White;
-
-            var stackPanel = new StackPanel();
-            stackPanel.Margin = new Thickness(20);
-
-            // Restaurant name
-            var txtRestaurantName = new TextBlock
-            {
-                Text = order.RestaurantName,
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            stackPanel.Children.Add(txtRestaurantName);
-
-            // Date and time
-            var txtDateTime = new TextBlock
-            {
-                Text = $"{order.OrderDate} {order.OrderTime}",
-                FontSize = 12,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 5)
-            };
-            stackPanel.Children.Add(txtDateTime);
-
-            // Check number
-            var txtCheckNumber = new TextBlock
-            {
-                Text = $"Chek №{order.CheckNumber}",
-                FontSize = 12,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 5)
-            };
-            stackPanel.Children.Add(txtCheckNumber);
-
-            // Table number
-            var txtTableNumber = new TextBlock
-            {
-                Text = $"Stol: {order.TableNumber}",
-                FontSize = 12,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 5)
-            };
-            stackPanel.Children.Add(txtTableNumber);
-
-            // Waiter
-            var txtWaiter = new TextBlock
-            {
-                Text = $"Ofitsiant: {order.WaiterName}",
-                FontSize = 12,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 15)
-            };
-            stackPanel.Children.Add(txtWaiter);
-
-            // Separator
-            var separator1 = new Rectangle
-            {
-                Height = 1,
-                Fill = Brushes.Black,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            stackPanel.Children.Add(separator1);
-
-            // Header
-            var headerGrid = new Grid();
-            headerGrid.Margin = new Thickness(0, 0, 0, 5);
-
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-
-            // Header texts
-            var txtHeaderNo = new TextBlock { Text = "№", FontWeight = FontWeights.Bold };
-            var txtHeaderName = new TextBlock { Text = "Nomi", FontWeight = FontWeights.Bold };
-            var txtHeaderQty = new TextBlock { Text = "Soni", FontWeight = FontWeights.Bold };
-            var txtHeaderPrice = new TextBlock { Text = "Narxi", FontWeight = FontWeights.Bold };
-            var txtHeaderAmount = new TextBlock { Text = "Summa", FontWeight = FontWeights.Bold };
-
-            // Add header texts to grid
-            Grid.SetColumn(txtHeaderNo, 0);
-            Grid.SetColumn(txtHeaderName, 1);
-            Grid.SetColumn(txtHeaderQty, 2);
-            Grid.SetColumn(txtHeaderPrice, 3);
-            Grid.SetColumn(txtHeaderAmount, 4);
-
-            headerGrid.Children.Add(txtHeaderNo);
-            headerGrid.Children.Add(txtHeaderName);
-            headerGrid.Children.Add(txtHeaderQty);
-            headerGrid.Children.Add(txtHeaderPrice);
-            headerGrid.Children.Add(txtHeaderAmount);
-
-            stackPanel.Children.Add(headerGrid);
-
-            // Separator
-            var separator2 = new Rectangle
-            {
-                Height = 1,
-                Fill = Brushes.Black,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            stackPanel.Children.Add(separator2);
-
-            // Items
-            for (int i = 0; i < order.Orders.Count; i++)
-            {
-                var item = order.Orders[i];
-
-                var itemGrid = new Grid();
-                itemGrid.Margin = new Thickness(0, 0, 0, 5);
-
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-
-                // Item details
-                var txtItemNo = new TextBlock { Text = (i + 1).ToString(), TextWrapping = TextWrapping.Wrap };
-                var txtItemName = new TextBlock { Text = item.Nomi, TextWrapping = TextWrapping.Wrap };
-                var txtItemQty = new TextBlock { Text = item.Soni.ToString(), TextAlignment = TextAlignment.Right };
-                var txtItemPrice = new TextBlock { Text = FormatCurrency(item.Narxi), TextAlignment = TextAlignment.Right };
-                var txtItemAmount = new TextBlock { Text = FormatCurrency(item.Summa), TextAlignment = TextAlignment.Right };
-
-                // Add item details to grid
-                Grid.SetColumn(txtItemNo, 0);
-                Grid.SetColumn(txtItemName, 1);
-                Grid.SetColumn(txtItemQty, 2);
-                Grid.SetColumn(txtItemPrice, 3);
-                Grid.SetColumn(txtItemAmount, 4);
-
-                itemGrid.Children.Add(txtItemNo);
-                itemGrid.Children.Add(txtItemName);
-                itemGrid.Children.Add(txtItemQty);
-                itemGrid.Children.Add(txtItemPrice);
-                itemGrid.Children.Add(txtItemAmount);
-
-                stackPanel.Children.Add(itemGrid);
-            }
-
-            // Separator
-            var separator3 = new Rectangle
-            {
-                Height = 1,
-                Fill = Brushes.Black,
-                Margin = new Thickness(0, 10, 0, 10)
-            };
-            stackPanel.Children.Add(separator3);
-
-            // Total
-            var totalGrid = new Grid();
-            totalGrid.Margin = new Thickness(0, 0, 0, 5);
-
-            totalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            totalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-
-            // Total amount
-            var txtTotalLabel = new TextBlock { Text = "Jami:", FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right };
-            var txtTotal = new TextBlock { Text = FormatCurrency(order.TotalAmount), FontWeight = FontWeights.Bold, TextAlignment = TextAlignment.Right };
-
-            Grid.SetColumn(txtTotalLabel, 0);
-            Grid.SetColumn(txtTotal, 1);
-
-            totalGrid.Children.Add(txtTotalLabel);
-            totalGrid.Children.Add(txtTotal);
-
-            stackPanel.Children.Add(totalGrid);
-
-            // Service fee
-            var serviceGrid = new Grid();
-            serviceGrid.Margin = new Thickness(0, 0, 0, 5);
-
-            serviceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            serviceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-
-            var txtServiceLabel = new TextBlock { Text = "Xizmat haqi:", HorizontalAlignment = HorizontalAlignment.Right };
-            var txtService = new TextBlock { Text = FormatCurrency(order.ServiceFee), TextAlignment = TextAlignment.Right };
-
-            Grid.SetColumn(txtServiceLabel, 0);
-            Grid.SetColumn(txtService, 1);
-
-            serviceGrid.Children.Add(txtServiceLabel);
-            serviceGrid.Children.Add(txtService);
-
-            stackPanel.Children.Add(serviceGrid);
-
-            // Grand total
-            var grandTotalGrid = new Grid();
-            grandTotalGrid.Margin = new Thickness(0, 5, 0, 20);
-
-            grandTotalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grandTotalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-
-            var txtGrandTotalLabel = new TextBlock { Text = "UMUMIY:", FontWeight = FontWeights.Bold, FontSize = 14, HorizontalAlignment = HorizontalAlignment.Right };
-            var txtGrandTotal = new TextBlock { Text = FormatCurrency(order.GrandTotal), FontWeight = FontWeights.Bold, FontSize = 14, TextAlignment = TextAlignment.Right };
-
-            Grid.SetColumn(txtGrandTotalLabel, 0);
-            Grid.SetColumn(txtGrandTotal, 1);
-
-            grandTotalGrid.Children.Add(txtGrandTotalLabel);
-            grandTotalGrid.Children.Add(txtGrandTotal);
-
-            stackPanel.Children.Add(grandTotalGrid);
-
-            // Thank you message
-            var txtThankYou = new TextBlock
-            {
-                Text = "Tashrifingiz uchun rahmat!",
-                FontSize = 14,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            stackPanel.Children.Add(txtThankYou);
-
-            grid.Children.Add(stackPanel);
-
-            return grid;
         }
 
         private void btnLogout_Click(object sender, RoutedEventArgs e)
