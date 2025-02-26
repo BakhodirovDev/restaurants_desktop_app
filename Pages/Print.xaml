@@ -1,0 +1,363 @@
+﻿<Window x:Class="Restaurants.Class.Print"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Real Vaqt" 
+        WindowStartupLocation="CenterScreen" 
+        WindowState="Maximized" 
+        Background="#F8F9FA"
+        Loaded="Window_Loaded">
+    <Window.Resources>
+        <DropShadowEffect x:Key="CardShadow" BlurRadius="8" ShadowDepth="1" Opacity="0.15" Color="#202020"/>
+        <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#3F3F3F"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TableButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="100"/>
+            <Setter Property="Height" Value="100"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="#5C6BC0" CornerRadius="8" Effect="{StaticResource CardShadow}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Stol" FontSize="14" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3F51B5"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#303F9F"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="BusyTableButtonStyle" TargetType="Button" BasedOn="{StaticResource TableButtonStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="#F44336" CornerRadius="8" Effect="{StaticResource CardShadow}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Stol (Band)" FontSize="14" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#D32F2F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#B71C1C"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SelectedTableButtonStyle" TargetType="Button" BasedOn="{StaticResource TableButtonStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="#4CAF50" CornerRadius="8" Effect="{StaticResource CardShadow}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Stol" FontSize="14" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#388E3C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2E7D32"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="BackToTopButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="#4CAF50" CornerRadius="20" Effect="{StaticResource CardShadow}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#388E3C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2E7D32"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="1*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Grid.RowSpan="2" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="12" 
+                Background="White" Effect="{StaticResource CardShadow}" Margin="0">
+            <Grid Margin="25">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="lblRealTime" FontSize="22" FontWeight="Bold" Foreground="#212529" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="lblLastUpdate" Text="Oxirgi yangilanish: —" FontSize="14" Foreground="#757575" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <ToggleButton x:Name="tglAutoRefresh" Content="Avtomatik yangilanish" Width="170" Height="40" 
+                                      IsChecked="True" Checked="tglAutoRefresh_Checked" Unchecked="tglAutoRefresh_Unchecked"
+                                      Margin="0,0,10,0">
+                            <ToggleButton.Style>
+                                <Style TargetType="ToggleButton">
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="15,10"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="FontSize" Value="14"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Border x:Name="border" Background="#4CAF50" CornerRadius="6">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="False">
+                                                        <Setter TargetName="border" Property="Background" Value="#FF9800"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ToggleButton.Style>
+                        </ToggleButton>
+                        <Button x:Name="btnGetData" Content="Yangilash" Width="100" Height="40" Click="btnGetData_Click"
+                                Background="#2196F3" Style="{StaticResource ActionButtonStyle}" Margin="0,0,10,0"/>
+                        <Button x:Name="btnLogout" Content="Chiqish" Width="100" Height="40" Click="btnLogout_Click"
+                                Background="#F44336" Style="{StaticResource ActionButtonStyle}"/>
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Row="1" Background="#E3F2FD" CornerRadius="6" Padding="15,10" Margin="0,0,0,20">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="lblStatus" Text="Har 3 sekundda ma'lumotlar yangilanmoqda..." Foreground="#1976D2" FontSize="14"/>
+                        <TextBlock x:Name="lblCountdown" Text="(3)" Foreground="#1976D2" FontWeight="SemiBold" Margin="5,0,0,0" FontSize="14"/>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="2" Margin="0,0,0,20">
+                    <Border Background="#F8F9FA" CornerRadius="8" Padding="20" BorderThickness="1" BorderBrush="#EEEEEE">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Restoran" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="lblRestoranValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text="Null"/>
+                                <TextBlock Text="Ofitsiant" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="lblOfitsiantValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text="Null"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Sana" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="lblSanaValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text="Null"/>
+                                <TextBlock Text="Stol" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="lblStolValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text="Null"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Vaqt" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="lblVaqtValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text="Null"/>
+                                <TextBlock Text="Chek raqami" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="lblChekRaqamiValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text="Null"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="3" Margin="0,0,0,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Stollar" Style="{StaticResource HeaderTextStyle}" FontSize="16" Margin="0,0,0,1"/>
+                    <ScrollViewer x:Name="tableScrollViewer" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ScrollChanged="tableScrollViewer_ScrollChanged">
+                        <WrapPanel x:Name="tablesPanel" Orientation="Horizontal"/>
+                    </ScrollViewer>
+                </Grid>
+
+                <Grid Grid.Row="4" Margin="0,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="4*"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" BorderThickness="1" BorderBrush="#EEEEEE" CornerRadius="8" Background="White" Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="#F8F9FA" BorderThickness="0,0,0,1" BorderBrush="#EEEEEE">
+                                <Grid Margin="20,15">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="400"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="150"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="№" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16"/>
+                                    <TextBlock Grid.Column="1" Text="Nomi" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16"/>
+                                    <TextBlock Grid.Column="2" Text="Soni" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Center"/>
+                                    <TextBlock Grid.Column="3" Text="Narxi" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
+                                    <TextBlock Grid.Column="4" Text="Summa" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
+                                </Grid>
+                            </Border>
+                            <ListView Grid.Row="1" x:Name="lvItems" BorderThickness="0" Background="Transparent" FontSize="14">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="Padding" Value="20,15"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                        <Setter Property="BorderBrush" Value="#EEEEEE"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#F5F7FA"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#E3F2FD"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Width="60" DisplayMemberBinding="{Binding Id}">
+                                            <GridViewColumn.Header>
+                                                <TextBlock Text="№" Visibility="Collapsed"/>
+                                            </GridViewColumn.Header>
+                                        </GridViewColumn>
+                                        <GridViewColumn Width="400" DisplayMemberBinding="{Binding Nomi}">
+                                            <GridViewColumn.Header>
+                                                <TextBlock Text="Nomi" Visibility="Collapsed"/>
+                                            </GridViewColumn.Header>
+                                        </GridViewColumn>
+                                        <GridViewColumn Width="120" DisplayMemberBinding="{Binding Soni}">
+                                            <GridViewColumn.Header>
+                                                <TextBlock Text="Soni" Visibility="Collapsed"/>
+                                            </GridViewColumn.Header>
+                                        </GridViewColumn>
+                                        <GridViewColumn Width="150" DisplayMemberBinding="{Binding Narxi}">
+                                            <GridViewColumn.Header>
+                                                <TextBlock Text="Narxi" Visibility="Collapsed"/>
+                                            </GridViewColumn.Header>
+                                        </GridViewColumn>
+                                        <GridViewColumn Width="150" DisplayMemberBinding="{Binding Summa}">
+                                            <GridViewColumn.Header>
+                                                <TextBlock Text="Summa" Visibility="Collapsed"/>
+                                            </GridViewColumn.Header>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Column="1" Background="#F8F9FA" CornerRadius="8" Padding="20" BorderThickness="1" BorderBrush="#EEEEEE">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Jami summa:" FontSize="14" Foreground="#757575"/>
+                                <TextBlock x:Name="lblJamiValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Xizmat haqi:" FontSize="14" Foreground="#757575"/>
+                                <TextBlock x:Name="lblXizmatValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
+                            </Grid>
+                            <Rectangle Height="1" Fill="#DDDDDD" Margin="0,5,0,10"/>
+                            <Grid Margin="0,5,0,15">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="UMUMIY:" FontSize="16" FontWeight="Bold" Foreground="#333333"/>
+                                <TextBlock x:Name="lblTotalValue" Grid.Column="1" FontSize="16" FontWeight="Bold" Foreground="#4CAF50" Text="0 so'm"/>
+                            </Grid>
+                            <Button x:Name="btnPrint" Content="Chek chiqarish" Height="44" Click="btnPrint_Click" 
+                                    Background="#2196F3" Style="{StaticResource ActionButtonStyle}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Button x:Name="btnBackToTop" Content="⬆" Grid.Row="1" 
+                Style="{StaticResource BackToTopButtonStyle}"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom" 
+                Margin="0,0,20,20" Click="btnBackToTop_Click"
+                Visibility="Collapsed"/>
+    </Grid>
+</Window>
