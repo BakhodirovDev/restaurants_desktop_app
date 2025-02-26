@@ -14,6 +14,7 @@ using RawPrint;
 using RawPrint.NetStd;
 using System.Drawing.Printing;
 using Restaurants.Helper;
+using Restaurants.Printer;
 
 namespace Restaurants.Class
 {
@@ -26,11 +27,13 @@ namespace Restaurants.Class
         private int currentSelectedTable = -1;
         private Dictionary<int, List<OrderItem>> tableOrders = new Dictionary<int, List<OrderItem>>();
 
-        public Print(HttpClient httpClient)
+        private readonly XPrinter _printer;
+
+        public Print(HttpClient httpClient, XPrinter printer)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             InitializeComponent();
-            
+
             // Real-time timer
             timeTimer = new DispatcherTimer();
             timeTimer.Interval = TimeSpan.FromSeconds(1);
@@ -42,6 +45,7 @@ namespace Restaurants.Class
             timer.Tick += Timer_Tick;
 
             this.Loaded += Window_Loaded;
+            _printer = printer;
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -558,21 +562,23 @@ namespace Restaurants.Class
                 return;
             }
 
-            var printOrder = new PrintOrder
-            {
-                TableNumber = currentSelectedTable,
-                RestaurantName = lblRestoranValue.Text,
-                WaiterName = lblOfitsiantValue.Text,
-                OrderDate = lblSanaValue.Text,
-                OrderTime = lblVaqtValue.Text,
-                CheckNumber = lblChekRaqamiValue.Text.TrimStart('#'),
-                Orders = tableOrders[currentSelectedTable],
-                TotalAmount = GetDecimalValueFromText(lblJamiValue.Text),
-                ServiceFee = GetDecimalValueFromText(lblXizmatValue.Text),
-                GrandTotal = GetDecimalValueFromText(lblTotalValue.Text)
-            };
+            _printer.PrintText("Doniyor");
 
-            PrintToXP80C(printOrder);
+            //var printOrder = new PrintOrder
+            //{
+            //    TableNumber = currentSelectedTable,
+            //    RestaurantName = lblRestoranValue.Text,
+            //    WaiterName = lblOfitsiantValue.Text,
+            //    OrderDate = lblSanaValue.Text,
+            //    OrderTime = lblVaqtValue.Text,
+            //    CheckNumber = lblChekRaqamiValue.Text.TrimStart('#'),
+            //    Orders = tableOrders[currentSelectedTable],
+            //    TotalAmount = GetDecimalValueFromText(lblJamiValue.Text),
+            //    ServiceFee = GetDecimalValueFromText(lblXizmatValue.Text),
+            //    GrandTotal = GetDecimalValueFromText(lblTotalValue.Text)
+            //};
+
+            //PrintToXP80C(printOrder);
         }
 
         static void PrintToXP80C(PrintOrder order)

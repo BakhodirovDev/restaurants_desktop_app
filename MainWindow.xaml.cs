@@ -1,6 +1,9 @@
 ﻿using Restaurants.Class;
+using Restaurants.Printer;
 using System;
+using System.IO;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -12,9 +15,28 @@ namespace Restaurants
     public partial class MainWindow : Window
     {
         private readonly HttpClient _httpClient;
+        private readonly XPrinter _xPrinter;
+        [DllImport("printer.sdk.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern IntPtr InitPrinter(string model);
+        [DllImport("printer.sdk.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern int OpenPort(IntPtr intPtr, string port);
+        [DllImport("printer.sdk.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern int PrintText(IntPtr intPtr, string data, int alignment, int textSize);
+        [DllImport("printer.sdk.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern int FeedLine(IntPtr intPtr, int lines);
+        [DllImport("printer.sdk.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern int ClosePort(IntPtr intPtr);
 
+
+        [DllImport("printer.sdk.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern int CutPaperWithDistance(IntPtr intPtr, int distance);
+
+
+        private IntPtr printer;
+        private int openStatus = -100;
         public MainWindow()
         {
+            _xPrinter = new XPrinter();
             _httpClient = new HttpClient
             {
                 BaseAddress = new Uri("https://crm-api.webase.uz/"),
@@ -22,8 +44,58 @@ namespace Restaurants
             };
             _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
+            //this.printer = MainWindow.InitPrinter("");
             InitializeComponent();
+            //InitializePrinter();
             AutoLogin();
+        }
+
+
+        public int openPort()
+        {
+            try
+            {
+                if (this.openStatus == 0)
+                    return this.openStatus;
+                this.openStatus = MainWindow.OpenPort(this.printer, "USB," + "USB001");
+
+                return this.openStatus;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private void InitializePrinter()
+        {
+
+            try
+            {
+                openPort();
+
+                if(openStatus == 0)
+                {
+                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
+                    MainWindow.FeedLine(this.printer, 1);
+                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
+                    MainWindow.FeedLine(this.printer, 1);
+                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
+                    MainWindow.FeedLine(this.printer, 1);
+                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
+                    MainWindow.FeedLine(this.printer, 1);
+                    var result = MainWindow.CutPaperWithDistance(this.printer, 10);
+
+                    if (result == 0)
+                    {
+                        MessageBox.Show("Urra");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error sending ZPL: " + ex.Message);
+            }
         }
 
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
@@ -71,7 +143,7 @@ namespace Restaurants
                     // Update HttpClient with the new token
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
 
-                    Print print = new Print(_httpClient);
+                    Print print = new Print(_httpClient, _xPrinter);
                     print.Show();
                     Close();
                 }
@@ -171,7 +243,7 @@ namespace Restaurants
                 if (IsTokenValid(expireAt))
                 {
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", savedToken);
-                    Print print = new Print(_httpClient);
+                    Print print = new Print(_httpClient, _xPrinter);
                     print.Show();
                     Close();
                 }
