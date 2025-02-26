@@ -562,21 +562,33 @@ namespace Restaurants.Class
                 return;
             }
 
-            _printer.PrintText("Doniyor");
+            var printOrder = new PrintOrder
+            {
+                TableNumber = currentSelectedTable,
+                RestaurantName = lblRestoranValue.Text,
+                WaiterName = lblOfitsiantValue.Text,
+                OrderDate = lblSanaValue.Text,
+                OrderTime = lblVaqtValue.Text,
+                CheckNumber = lblChekRaqamiValue.Text.TrimStart('#'),
+                Orders = tableOrders[currentSelectedTable],
+                TotalAmount = GetDecimalValueFromText(lblJamiValue.Text),
+                ServiceFee = GetDecimalValueFromText(lblXizmatValue.Text),
+                GrandTotal = GetDecimalValueFromText(lblTotalValue.Text)
+            };
 
-            //var printOrder = new PrintOrder
-            //{
-            //    TableNumber = currentSelectedTable,
-            //    RestaurantName = lblRestoranValue.Text,
-            //    WaiterName = lblOfitsiantValue.Text,
-            //    OrderDate = lblSanaValue.Text,
-            //    OrderTime = lblVaqtValue.Text,
-            //    CheckNumber = lblChekRaqamiValue.Text.TrimStart('#'),
-            //    Orders = tableOrders[currentSelectedTable],
-            //    TotalAmount = GetDecimalValueFromText(lblJamiValue.Text),
-            //    ServiceFee = GetDecimalValueFromText(lblXizmatValue.Text),
-            //    GrandTotal = GetDecimalValueFromText(lblTotalValue.Text)
-            //};
+
+            string txtForPrint = $"Zakaz N#: {122}\n";
+            foreach (var item in printOrder.Orders) 
+            {
+                txtForPrint += $"{item.Nomi}          {item.Soni}  {item.Summa} \n";
+            }
+
+            txtForPrint += $"Summa: {GetDecimalValueFromText(lblJamiValue.Text)} \n" +
+                $"Xizmat haqi: {GetDecimalValueFromText(lblXizmatValue.Text)}\n" +
+                $"Jami : {GetDecimalValueFromText(lblTotalValue.Text)}";
+
+            _printer.PrintText(txtForPrint);
+
 
             //PrintToXP80C(printOrder);
         }
