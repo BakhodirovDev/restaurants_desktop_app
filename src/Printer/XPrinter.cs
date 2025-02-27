@@ -1,6 +1,4 @@
 ﻿using Restaurants.Class.Printer;
-using System.Globalization;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -55,15 +53,12 @@ public class XPrinter
 
     public void PrintText(PrintOrder printOrder)
     {
-        // PrintOrder obyektidan bosib chiqarish uchun matnni yaratamiz
         string textToPrint = BuildPrintText(printOrder);
 
         try
         {
-            // Printer portini ochamiz
             OpenPort();
 
-            // Printer tayyorligini tekshiramiz (0 - tayyor)
             if (openStatus != 0)
             {
                 MessageBox.Show("Printer tayyor emas.", "Xato", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -97,11 +92,9 @@ public class XPrinter
         sb.AppendLine($"Stol: {order.TableNumber}");
         sb.AppendLine(new string('-', 40));
 
-        // Ustun sarlavhalari
         sb.AppendLine($"Mahsulot    |    Soni    |    Summa");
         sb.AppendLine(new string('-', 40));
 
-        // Har bir buyurtma elementini chiqaramiz
         foreach (var item in order.Orders)
         {
             sb.AppendLine($"{item.ProductShortName.PadRight(12)} | {item.Quantity.ToString().PadLeft(8)} | {item.Amount.ToString().PadLeft(8)} UZS");
