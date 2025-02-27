@@ -97,14 +97,20 @@ public class XPrinter
 
         foreach (var item in order.Orders)
         {
-            sb.AppendLine($"{item.ProductShortName.PadRight(12)} | {item.Quantity.ToString().PadLeft(8)} | {item.Amount.ToString().PadLeft(8)} UZS");
+            // Format Amount to one decimal place
+            string amountFormatted = Math.Round(item.Amount, 1).ToString("0.0").PadLeft(8);
+            sb.AppendLine($"{item.ProductShortName.PadRight(12)} | {item.Quantity.ToString().PadLeft(8)} | {amountFormatted} UZS");
         }
 
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Summa: {order.TotalAmount.ToString().PadLeft(26)} UZS");
-        sb.AppendLine($"Xizmat haqi: {order.ServiceFee.ToString().PadLeft(20)} UZS");
+        // Format totals to one decimal place
+        string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0.0").PadLeft(26);
+        string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0.0").PadLeft(20);
+        string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0.0").PadLeft(27);
+        sb.AppendLine($"Summa: {totalFormatted} UZS");
+        sb.AppendLine($"Xizmat haqi: {serviceFeeFormatted} UZS");
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Jami: {order.GrandTotal.ToString().PadLeft(27)} UZS");
+        sb.AppendLine($"Jami: {grandTotalFormatted} UZS");
 
         return sb.ToString();
     }
