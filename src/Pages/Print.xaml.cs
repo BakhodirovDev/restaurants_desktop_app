@@ -692,32 +692,64 @@ namespace Restaurants.Classes
         private string BuildPrintText(PrintOrder order)
         {
             var sb = new StringBuilder();
+
+            // Initialize printer (ESC @)
+            sb.Append("\x1B\x40");
+
+            // Center alignment for header (ESC a 1)
+            sb.Append("\x1B\x61\x01");
+
+            // Bold text for header (ESC E 1)
+            sb.Append("\x1B\x45\x01");
             sb.AppendLine($"Zakaz N#: {order.CheckNumber}");
             sb.AppendLine($"Restoran: {order.RestaurantName}");
             sb.AppendLine($"Ofitsiant: {order.WaiterName}");
             sb.AppendLine($"Sana: {order.OrderDate}   Vaqt: {order.OrderTime}");
             sb.AppendLine($"Stol: {order.TableNumber}");
-            sb.AppendLine(new string('-', 40));
 
-            sb.AppendLine($"Mahsulot    |    Soni    |    Summa");
-            sb.AppendLine(new string('-', 40));
+            // Reset bold text (ESC E 0)
+            sb.Append("\x1B\x45\x00");
 
+            // Print separator line (48 characters to fit 80mm width)
+            sb.AppendLine(new string('-', 48));
+
+            // Left alignment (ESC a 0)
+            sb.Append("\x1B\x61\x0");
+
+            // Header for table with wider Mahsulot column
+            sb.AppendLine($"Mahsulot                    |    Soni    |    Summa");
+            sb.AppendLine(new string('-', 48));
+
+            // Print items with wider Mahsulot column (24 characters)
             foreach (var item in order.Orders)
             {
                 // Format Amount to one decimal place
                 string amountFormatted = Math.Round(item.Amount, 1).ToString("0.0").PadLeft(8);
-                sb.AppendLine($"{item.ProductShortName.PadRight(12)} | {item.Quantity.ToString().PadLeft(8)} | {amountFormatted} UZS");
+                // Truncate or pad ProductShortName to 24 characters to fit within 48-character line
+                string productName = item.ProductShortName.Length > 24 ? item.ProductShortName.Substring(0, 24) : item.ProductShortName.PadRight(24);
+                sb.AppendLine($"{productName} | {item.Quantity.ToString().PadLeft(8)} | {amountFormatted} UZS");
             }
 
-            sb.AppendLine(new string('-', 40));
+            // Print separator line
+            sb.AppendLine(new string('-', 48));
+
+            // Right alignment for totals (ESC a 2)
+            sb.Append("\x1B\x61\x02");
             // Format totals to one decimal place
-            string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0.0").PadLeft(26);
-            string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0.0").PadLeft(20);
-            string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0.0").PadLeft(27);
+            string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0").PadLeft(8);
+            string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0").PadLeft(8);
+            string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0").PadLeft(8);
             sb.AppendLine($"Summa: {totalFormatted} UZS");
             sb.AppendLine($"Xizmat haqi: {serviceFeeFormatted} UZS");
-            sb.AppendLine(new string('-', 40));
+            sb.AppendLine(new string('-', 48));
             sb.AppendLine($"Jami: {grandTotalFormatted} UZS");
+
+            // Center alignment for footer (ESC a 1)
+            sb.Append("\x1B\x61\x01");
+            sb.AppendLine("Tashrifingiz uchun rahmat!");
+
+            // Cut paper (GS V 0)
+            sb.Append("\x1D\x56\x00");
 
             return sb.ToString();
         }
