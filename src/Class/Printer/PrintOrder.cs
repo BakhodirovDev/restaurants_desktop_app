@@ -1,4 +1,4 @@
-﻿namespace Restaurants.Class
+﻿namespace Restaurants.Class.Printer
 {
     public class PrintOrder
     {

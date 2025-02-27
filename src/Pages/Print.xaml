@@ -1,4 +1,4 @@
-﻿<Window x:Class="Restaurants.Class.Print"
+﻿<Window x:Class="Restaurants.Classes.Print"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Restaurant" 
@@ -32,7 +32,8 @@
             </Setter>
         </Style>
         <Style x:Key="TableButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="100"/>
+            <Setter Property="Width" Value="120"/>
+            <!-- Increased width to accommodate text -->
             <Setter Property="Height" Value="100"/>
             <Setter Property="Margin" Value="10"/>
             <Setter Property="Foreground" Value="White"/>
@@ -46,7 +47,7 @@
                         <Border x:Name="border" Background="#5C6BC0" CornerRadius="8" Effect="{StaticResource CardShadow}">
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Stol" FontSize="14" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                                <TextBlock Text="{TemplateBinding Content}" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -67,8 +68,9 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" Background="#F44336" CornerRadius="8" Effect="{StaticResource CardShadow}">
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="Stol (Band)" FontSize="14" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                                <TextBlock Text="{TemplateBinding Content}" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Stol (Band)" FontSize="12" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontSize="12" Foreground="White" HorizontalAlignment="Center" TextAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -89,8 +91,9 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" Background="#4CAF50" CornerRadius="8" Effect="{StaticResource CardShadow}">
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="Stol" FontSize="14" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                                <TextBlock Text="{TemplateBinding Content}" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Stol" FontSize="12" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontSize="12" Foreground="White" HorizontalAlignment="Center" TextAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -237,7 +240,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Stollar" Style="{StaticResource HeaderTextStyle}" FontSize="16" Margin="0,0,0,1"/>
+                    <TextBlock Grid.Row="0" Text="Stollar" Style="{StaticResource HeaderTextStyle}" FontSize="16" Margin="0,0,0,10"/>
                     <ScrollViewer x:Name="tableScrollViewer" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ScrollChanged="tableScrollViewer_ScrollChanged">
                         <WrapPanel x:Name="tablesPanel" Orientation="Horizontal"/>
                     </ScrollViewer>
@@ -254,51 +257,115 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#F8F9FA" BorderThickness="0,0,0,1" BorderBrush="#EEEEEE">
-                                <Grid Margin="20,15">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="60"/>
-                                        <ColumnDefinition Width="400"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="150"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="№" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16"/>
-                                    <TextBlock Grid.Column="1" Text="Nomi" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16"/>
-                                    <TextBlock Grid.Column="2" Text="Soni" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Center"/>
-                                    <TextBlock Grid.Column="3" Text="Narxi" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
-                                    <TextBlock Grid.Column="4" Text="Summa" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
-                                </Grid>
-                            </Border>
-                            <ListView Grid.Row="1" x:Name="lvItems" BorderThickness="0" Background="Transparent" FontSize="14">
+
+                            <!-- Header Row -->
+                            <Grid Grid.Row="0" Background="#F8F9FA" Margin="0,0,0,0">
+                                <Border BorderThickness="0,0,0,1" BorderBrush="#EEEEEE" Padding="20,15">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="50"/>
+                                            <!-- № -->
+                                            <ColumnDefinition Width="70"/>
+                                            <!-- ID -->
+                                            <ColumnDefinition Width="180"/>
+                                            <!-- Nomi -->
+                                            <ColumnDefinition Width="*"/>
+                                            <!-- Tafsilotlar -->
+                                            <ColumnDefinition Width="100"/>
+                                            <!-- Soni -->
+                                            <ColumnDefinition Width="120"/>
+                                            <!-- Narxi -->
+                                            <ColumnDefinition Width="150"/>
+                                            <!-- Jami summa -->
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="№" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="ID" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="Nomi" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" Margin="5,0,0,0"/>
+                                        <TextBlock Grid.Column="3" Text="Tafsilotlar" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" Margin="5,0,0,0"/>
+                                        <TextBlock Grid.Column="4" Text="Soni" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
+                                        <TextBlock Grid.Column="5" Text="Narxi" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
+                                        <TextBlock Grid.Column="6" Text="Jami summa" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- List Items -->
+                            <ListView Grid.Row="1" x:Name="lvItems" BorderThickness="0" Background="Transparent" FontSize="14" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListView.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel />
+                                    </ItemsPanelTemplate>
+                                </ListView.ItemsPanel>
+
                                 <ListView.ItemContainerStyle>
                                     <Style TargetType="ListViewItem">
-                                        <Setter Property="Padding" Value="15,10"/>
+                                        <Setter Property="Padding" Value="0"/>
                                         <Setter Property="Margin" Value="0,0,0,5"/>
                                         <Setter Property="BorderThickness" Value="0"/>
                                         <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                         <Setter Property="Template">
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="ListViewItem">
-                                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#E0E0E0" BorderThickness="1" Padding="10">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#E0E0E0" BorderThickness="1" Padding="0">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="60"/>
-                                                                <ColumnDefinition Width="400"/>
+                                                                <ColumnDefinition Width="50"/>
+                                                                <!-- № -->
+                                                                <ColumnDefinition Width="70"/>
+                                                                <!-- ID -->
+                                                                <ColumnDefinition Width="180"/>
+                                                                <!-- Nomi -->
+                                                                <ColumnDefinition Width="*"/>
+                                                                <!-- Tafsilotlar -->
+                                                                <ColumnDefinition Width="100"/>
+                                                                <!-- Soni -->
                                                                 <ColumnDefinition Width="120"/>
+                                                                <!-- Narxi -->
                                                                 <ColumnDefinition Width="150"/>
-                                                                <ColumnDefinition Width="150"/>
+                                                                <!-- Jami summa -->
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="{Binding Id}" Foreground="#212529" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                                                            <TextBlock Grid.Column="1" Text="{Binding Nomi}" Foreground="#212529" FontSize="14" FontWeight="Medium" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                            <TextBlock Grid.Column="2" Text="{Binding Soni}" Foreground="#4CAF50" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                                            <TextBlock Grid.Column="3" Text="{Binding Narxi}" Foreground="#757575" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Right"/>
-                                                            <TextBlock Grid.Column="4" Text="{Binding Summa}" Foreground="#2196F3" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+
+                                                            <!-- Data Row Content with Padding Inside Each Cell -->
+                                                            <Border Grid.Column="0" Padding="10">
+                                                                <TextBlock Text="{Binding Index}" Foreground="#212529" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                            </Border>
+
+                                                            <Border Grid.Column="1" Padding="10">
+                                                                <TextBlock Text="{Binding Id}" Foreground="#212529" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                            </Border>
+
+                                                            <Border Grid.Column="2" Padding="10,10,5,10">
+                                                                <TextBlock Text="{Binding ProductShortName}" Foreground="#212529" FontSize="14" FontWeight="Medium" 
+                                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                                                            </Border>
+
+                                                            <Border Grid.Column="3" Padding="10">
+                                                                <!-- Details with TextWrapping enabled for multi-line support -->
+                                                                <TextBlock Text="{Binding ContractorRequirement}" Foreground="#757575" FontSize="13" 
+                                                                           VerticalAlignment="Center" TextWrapping="Wrap" ToolTip="{Binding ContractorRequirement}"/>
+                                                            </Border>
+
+                                                            <Border Grid.Column="4" Padding="10">
+                                                                <TextBlock Text="{Binding Quantity}" Foreground="#4CAF50" FontSize="14" FontWeight="Bold" 
+                                                                           VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                                            </Border>
+
+                                                            <Border Grid.Column="5" Padding="10">
+                                                                <TextBlock Text="{Binding EstimatedPrice}" Foreground="#757575" FontSize="14" 
+                                                                           VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                                            </Border>
+
+                                                            <Border Grid.Column="6" Padding="10">
+                                                                <TextBlock Text="{Binding Amount}" Foreground="#2196F3" FontSize="14" FontWeight="Bold" 
+                                                                           VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                                            </Border>
                                                         </Grid>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#F5F7FA"/>
+                                                            <Setter Property="Background" Value="#E8F0FE"/>
                                                         </Trigger>
                                                         <Trigger Property="IsSelected" Value="True">
                                                             <Setter Property="Background" Value="#E3F2FD"/>
@@ -308,6 +375,14 @@
                                                 </ControlTemplate>
                                             </Setter.Value>
                                         </Setter>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Index, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Odd}" Value="True">
+                                                <Setter Property="Background" Value="#F5F8FA"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Index, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Even}" Value="True">
+                                                <Setter Property="Background" Value="#FFFFFF"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </ListView.ItemContainerStyle>
                             </ListView>
@@ -321,7 +396,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Jami summa:" FontSize="14" Foreground="#757575"/>
-                                <TextBlock x:Name="lblJamiValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
+                                <TextBlock x:Name="lblAmountValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
                             </Grid>
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
@@ -329,7 +404,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Xizmat haqi:" FontSize="14" Foreground="#757575"/>
-                                <TextBlock x:Name="lblXizmatValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
+                                <TextBlock x:Name="lblAdditinalPaymentValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
                             </Grid>
                             <Rectangle Height="1" Fill="#DDDDDD" Margin="0,5,0,10"/>
                             <Grid Margin="0,5,0,15">
@@ -338,7 +413,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="UMUMIY:" FontSize="16" FontWeight="Bold" Foreground="#333333"/>
-                                <TextBlock x:Name="lblTotalValue" Grid.Column="1" FontSize="16" FontWeight="Bold" Foreground="#4CAF50" Text="0 so'm"/>
+                                <TextBlock x:Name="lblTotalAmountValue" Grid.Column="1" FontSize="16" FontWeight="Bold" Foreground="#4CAF50" Text="0 so'm"/>
                             </Grid>
                             <Button x:Name="btnPrint" Content="Chek chiqarish" Height="44" Click="btnPrint_Click" 
                                     Background="#2196F3" Style="{StaticResource ActionButtonStyle}"/>

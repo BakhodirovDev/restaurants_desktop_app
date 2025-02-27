@@ -1,22 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+﻿using Newtonsoft.Json;
+using Restaurants.Class;
+using Restaurants.Class.Contractor_GetList;
+using Restaurants.Class.ContractorOrder_Get;
+using Restaurants.Class.Printer;
+using Restaurants.Helper;
+using Restaurants.Printer;
+using System.Drawing.Printing;
 using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using System.Windows.Threading;
-using Newtonsoft.Json;
-using RawPrint;
-using RawPrint.NetStd;
-using System.Drawing.Printing;
-using Restaurants.Helper;
-using Restaurants.Printer;
 
-namespace Restaurants.Class
+namespace Restaurants.Classes
 {
     public partial class Print : Window
     {
@@ -25,7 +22,7 @@ namespace Restaurants.Class
         private DispatcherTimer timeTimer;
         private int countdown = 3;
         private int currentSelectedTable = -1;
-        private Dictionary<int, List<OrderItem>> tableOrders = new Dictionary<int, List<OrderItem>>();
+        private Dictionary<int, List<ContractorOrderTable>> tableOrders = new Dictionary<int, List<ContractorOrderTable>>();
 
         private readonly XPrinter _printer;
 
@@ -64,38 +61,32 @@ namespace Restaurants.Class
         {
             try
             {
-                // Ensure we have a valid token
                 string token = await EnsureValidTokenAsync();
                 if (string.IsNullOrEmpty(token))
                 {
                     MessageBox.Show("Unable to authenticate. Please log in again.", "Authentication Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    GenerateTableButtons(20); // Fallback
+                    GenerateTableButtons(new List<TablesInfo>()); // Fallback with empty list
                     return;
                 }
 
-                /*// Log the token for debugging
-                MessageBox.Show($"Using Token: {token}", "Debug", MessageBoxButton.OK); // Remove in production
-*/
-                // Minimal body as confirmed
                 var requestData = new
                 {
                     pageSize = 20,
                     page = 1
                 };
 
-                var content = new StringContent(JsonConvert.SerializeObject(requestData), System.Text.Encoding.UTF8, "application/json");
+                var content = new StringContent(JsonConvert.SerializeObject(requestData), Encoding.UTF8, "application/json");
 
                 var request = new HttpRequestMessage(HttpMethod.Post, "https://crm-api.webase.uz/crm/Contractor/GetList")
                 {
                     Content = content
                 };
 
-                // Set headers to match Postman exactly
                 request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
                 request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/plain"));
                 request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
                 request.Headers.Add("accept-language", "ru-RU,ru;q=0.9,uz-UZ;q=0.8,uz;q=0.7,en-US;q=0.6,en;q=0.5");
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token); // Ensure Bearer prefix
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                 request.Headers.Add("origin", "https://crm.webase.uz");
                 request.Headers.Add("priority", "u=1, i");
                 request.Headers.Add("referer", "https://crm.webase.uz/");
@@ -104,16 +95,15 @@ namespace Restaurants.Class
                 request.Headers.Add("sec-ch-ua-platform", "\"Windows\"");
                 request.Headers.Add("sec-fetch-dest", "empty");
                 request.Headers.Add("sec-fetch-mode", "cors");
-                request.Headers.Add("sec-fetch-site", "same-site"); 
+                request.Headers.Add("sec-fetch-site", "same-site");
                 request.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36");
 
-                // Send the request
                 HttpResponseMessage response = await _httpClient.SendAsync(request);
 
                 if (response.IsSuccessStatusCode)
                 {
                     string jsonResponse = await response.Content.ReadAsStringAsync();
-                    var data = JsonConvert.DeserializeObject<ContractorResponse>(jsonResponse);
+                    var data = JsonConvert.DeserializeObject<ContractorGetList>(jsonResponse);
 
                     if (data?.Rows != null)
                     {
@@ -122,7 +112,6 @@ namespace Restaurants.Class
                     else
                     {
                         MessageBox.Show("No table data returned from the API.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        GenerateTableButtons(20); // Fallback
                     }
                 }
                 else
@@ -134,7 +123,6 @@ namespace Restaurants.Class
                         errorMessage += $"\nServer Response: {errorContent}";
                     }
                     MessageBox.Show(errorMessage, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    GenerateTableButtons(20); // Fallback
 
                     if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                     {
@@ -147,22 +135,18 @@ namespace Restaurants.Class
             catch (HttpRequestException ex)
             {
                 MessageBox.Show($"Network error loading tables: {ex.Message}", "Network Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                GenerateTableButtons(20); // Fallback
             }
             catch (JsonException ex)
             {
                 MessageBox.Show($"Error parsing table data: {ex.Message}", "Parse Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                GenerateTableButtons(20); // Fallback
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Unexpected error loading tables: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                GenerateTableButtons(20); // Fallback
             }
         }
 
         private async Task<string> EnsureValidTokenAsync()
-        
         {
             string token = Settings.Default.AccessToken;
 
@@ -171,7 +155,6 @@ namespace Restaurants.Class
                 return token; // Return current token for testing
             }
 
-            // Attempt to refresh token
             string refreshToken = Settings.Default.RefreshToken;
             if (string.IsNullOrEmpty(refreshToken))
             {
@@ -179,7 +162,7 @@ namespace Restaurants.Class
             }
 
             var refreshRequest = new { refreshToken };
-            var refreshContent = new StringContent(JsonConvert.SerializeObject(refreshRequest), System.Text.Encoding.UTF8, "application/json");
+            var refreshContent = new StringContent(JsonConvert.SerializeObject(refreshRequest), Encoding.UTF8, "application/json");
             HttpResponseMessage refreshResponse = await _httpClient.PostAsync("https://crm-api.webase.uz/account/RefreshToken", refreshContent);
 
             if (refreshResponse.IsSuccessStatusCode)
@@ -195,7 +178,7 @@ namespace Restaurants.Class
             return null; // Refresh failed
         }
 
-        private void GenerateTableButtons(List<ContractorRow> tables)
+        private void GenerateTableButtons(List<TablesInfo> tables)
         {
             tablesPanel.Children.Clear();
 
@@ -205,155 +188,145 @@ namespace Restaurants.Class
             {
                 if (int.TryParse(table.FirstName, out int tableNumber))
                 {
+                    // Calculate order counts for this table
+                    int productsCount = 0; // Total number of orders (products)
+                    int completedProductsCount = 0; // Number of completed orders
+                    if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> orders))
+                    {
+                        productsCount = orders.Count; // Total orders (products)
+                        completedProductsCount = orders.Count(o => o.IsCompleted); // Completed orders based on IsCompleted
+                    }
+
+                    string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
+
                     Button tableButton = new Button
                     {
                         Content = tableNumber.ToString(),
-                        Tag = tableNumber,
+                        Tag = new TableButtonData
+                        {
+                            TableNumber = tableNumber,
+                            ContractorId = table.Id,
+                            NotCompletedOrderId = table.NotCompletedOrderId,
+                            OrderCountText = orderCountText // Store order counts in TableButtonData
+                        },
                         Style = table.HasNotCompletedOrder ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("TableButtonStyle")
                     };
-                    tableButton.Content = tableNumber.ToString();
-                    tableButton.Tag = new TableButtonData
-                    {
-                        TableNumber = tableNumber,
-                        ContractorId = table.Id,
-                        NotCompletedOrderId = table.notCompletedOrderId
-                    };
+
                     tableButton.Click += TableButton_Click;
                     tablesPanel.Children.Add(tableButton);
                 }
             }
         }
-        private void GenerateTableButtons(int count)
-        {
-            tablesPanel.Children.Clear();
-
-            for (int i = 1; i <= count; i++)
-            {
-                var buttonData = new TableButtonData
-                {
-                    TableNumber = i,
-                    ContractorId = 0, // Dummy value for fallback
-                    NotCompletedOrderId = null // No order in fallback
-                };
-
-                Button tableButton = new Button
-                {
-                    Content = i.ToString(),
-                    Tag = buttonData, // Use TableButtonData even in fallback
-                    Style = (Style)FindResource("TableButtonStyle")
-                };
-                tableButton.Click += TableButton_Click;
-                tablesPanel.Children.Add(tableButton);
-            }
-        }
 
         private void TableButton_Click(object sender, RoutedEventArgs e)
         {
-            Button clickedButton = sender as Button;
-            if (clickedButton == null) return;
+            if (sender is not Button clickedButton) return;
 
-            int tableNumber;
-            int? notCompletedOrderId = null;
-
-            // Handle both possible Tag types
-            if (clickedButton.Tag is TableButtonData buttonData)
-            {
-                tableNumber = buttonData.TableNumber;
-                notCompletedOrderId = buttonData.NotCompletedOrderId;
-            }
-            else if (clickedButton.Tag is int intTag)
-            {
-                tableNumber = intTag;
-                notCompletedOrderId = null; // No order ID in fallback case
-            }
-            else
+            if (clickedButton.Tag is not TableButtonData buttonData)
             {
                 MessageBox.Show("Invalid table data.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
+            }
+
+            int tableNumber = buttonData.TableNumber;
+            int? notCompletedOrderId = buttonData.NotCompletedOrderId;
+
+            // Preserve the busy status of the table when selecting it
+            bool isBusy = false;
+            if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> orders) && orders.Any(o => !o.IsCompleted))
+            {
+                isBusy = true;
             }
 
             if (currentSelectedTable > 0)
             {
                 foreach (Button btn in tablesPanel.Children)
                 {
-                    int btnTableNumber;
-                    bool hasNotCompletedOrder = false;
-
-                    if (btn.Tag is TableButtonData btnData)
+                    if (btn.Tag is TableButtonData btnData && btnData.TableNumber == currentSelectedTable)
                     {
-                        btnTableNumber = btnData.TableNumber;
-                        hasNotCompletedOrder = btnData.NotCompletedOrderId.HasValue;
-                    }
-                    else if (btn.Tag is int btnIntTag)
-                    {
-                        btnTableNumber = btnIntTag;
-                    }
-                    else
-                    {
-                        continue;
-                    }
-
-                    if (btnTableNumber == currentSelectedTable)
-                    {
-                        btn.Style = hasNotCompletedOrder ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("TableButtonStyle");
+                        bool btnIsBusy = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrderTable> btnOrders) && btnOrders.Any(o => !o.IsCompleted);
+                        btn.Style = btnIsBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("TableButtonStyle");
                         break;
                     }
                 }
             }
 
-            clickedButton.Style = (Style)FindResource("SelectedTableButtonStyle");
+            // Set the style for the selected button, preserving busy status if applicable
+            clickedButton.Style = isBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("SelectedTableButtonStyle");
             currentSelectedTable = tableNumber;
             lblStolValue.Text = "#" + tableNumber;
+
+            // Reload orders immediately after selecting the table, even if busy
+            LoadTableOrders(tableNumber);
 
             // Fetch order details if there’s an incomplete order
             if (notCompletedOrderId.HasValue)
             {
                 GetDataForTable(notCompletedOrderId.Value);
             }
-            else
-            {
-                LoadTableOrders(tableNumber); // Fallback to local data or clear
-            }
         }
 
-
-        private void LoadTableOrders(int tableNumber)
+        private void LoadTableOrders(int tableNumber, string currency = null)
         {
             lvItems.Items.Clear();
 
-            if (tableOrders.ContainsKey(tableNumber) && tableOrders[tableNumber].Count > 0)
+            if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> items) && items != null)
             {
-                foreach (var item in tableOrders[tableNumber])
+                // Map ContractorOrderTable to OrderItem for display, including busy tables
+                var orderItems = items.Select((item, index) => new OrderItem
                 {
-                    lvItems.Items.Add(item);
+                    Id = item.Id,
+                    ProductShortName = item.ProductShortName ?? "No Name",
+                    ContractorRequirement = item.ContractorRequirement ?? "No Details",
+                    Quantity = (int)(item.Quantity > 0 ? item.Quantity : 1), // Default to 1 if zero or negative
+                    EstimatedPrice = item.EstimatedPrice > 0 ? item.EstimatedPrice : 0,
+                    Amount = item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), // Calculate if Amount is 0
+                    TableNumber = tableNumber // Infer TableNumber from context
+                }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList(); // Only filter out items with no name
+
+                if (orderItems.Any())
+                {
+                    // Add index for display
+                    for (int i = 0; i < orderItems.Count; i++)
+                    {
+                        orderItems[i].Index = i + 1; // Set the index for each item
+                    }
+
+                    foreach (var item in orderItems)
+                    {
+                        lvItems.Items.Add(item); // Add OrderItem to ListView
+                    }
+                    CalculateTotals(orderItems);
                 }
-                CalculateTotals(tableOrders[tableNumber]);
+                else
+                {
+                    Console.WriteLine($"No valid orders found for table {tableNumber}");
+                    lblAmountValue.Text = "0 so'm";
+                    lblAdditinalPaymentValue.Text = "0 so'm";
+                    lblTotalAmountValue.Text = "0 so'm";
+                }
             }
             else
             {
-                lblJamiValue.Text = "0 so'm";
-                lblXizmatValue.Text = "0 so'm";
-                lblTotalValue.Text = "0 so'm";
+                Console.WriteLine($"No orders in tableOrders for table {tableNumber}");
+                lblAmountValue.Text = "0 so'm";
+                lblAdditinalPaymentValue.Text = "0 so'm";
+                lblTotalAmountValue.Text = "0 so'm";
             }
         }
 
         private void CalculateTotals(List<OrderItem> items)
         {
-            decimal total = 0;
-            foreach (var item in items)
-            {
-                total += item.Summa;
-            }
-
-            decimal serviceFee = total * 0.1m;
-            lblJamiValue.Text = FormatCurrency(total);
-            lblXizmatValue.Text = FormatCurrency(serviceFee);
-            lblTotalValue.Text = FormatCurrency(total + serviceFee);
+            decimal total = items.Sum(item => item.Amount);
+            decimal serviceFee = total * 0.1m; // 10% service fee
+            lblAmountValue.Text = FormatCurrency(total);
+            lblAdditinalPaymentValue.Text = FormatCurrency(serviceFee);
+            lblTotalAmountValue.Text = FormatCurrency(total + serviceFee);
         }
 
-        private string FormatCurrency(decimal amount)
+        private string FormatCurrency(decimal value)
         {
-            return $"{amount:N0} so'm";
+            return $"{value:0.00} so'm";
         }
 
         private void Timer_Tick(object sender, EventArgs e)
@@ -424,7 +397,7 @@ namespace Restaurants.Class
                 if (response.IsSuccessStatusCode)
                 {
                     string jsonResponse = await response.Content.ReadAsStringAsync();
-                    var data = JsonConvert.DeserializeObject<ApiResponse>(jsonResponse);
+                    var data = JsonConvert.DeserializeObject<ContractorOrder>(jsonResponse);
 
                     lblRestoranValue.Text = data.OrganizationAreasOfActivity ?? "Null";
                     lblOfitsiantValue.Text = data.Responsible ?? "Null";
@@ -434,6 +407,12 @@ namespace Restaurants.Class
 
                     ProcessApiData(data);
                     lblLastUpdate.Text = "Oxirgi yangilanish: " + DateTime.Now.ToString("HH:mm:ss");
+
+                    // Reload orders for the currently selected table after data refresh
+                    if (currentSelectedTable > 0)
+                    {
+                        LoadTableOrders(currentSelectedTable);
+                    }
                 }
                 else
                 {
@@ -467,8 +446,14 @@ namespace Restaurants.Class
                 if (response.IsSuccessStatusCode)
                 {
                     string jsonResponse = await response.Content.ReadAsStringAsync();
-                    var data = JsonConvert.DeserializeObject<TableOrderResponse>(jsonResponse);
+                    var data = JsonConvert.DeserializeObject<ContractorOrder>(jsonResponse); // Use ContractorOrder
                     ProcessTableData(data);
+
+                    // Reload orders for the currently selected table after fetching specific data
+                    if (currentSelectedTable > 0)
+                    {
+                        LoadTableOrders(currentSelectedTable);
+                    }
                 }
                 else
                 {
@@ -482,55 +467,115 @@ namespace Restaurants.Class
             }
         }
 
-        private void ProcessApiData(ApiResponse data)
+        private void ProcessApiData(ContractorOrder data)
         {
             if (data == null || data.Tables == null) return;
 
+            // Preserve existing tableOrders and update with new data
+            var existingTableOrders = new Dictionary<int, List<ContractorOrderTable>>(tableOrders);
+
+            // Update tableOrders with new data, preserving existing entries if possible
             foreach (var table in data.Tables)
             {
-                tableOrders[table.TableNumber] = table.Orders;
+                // Infer TableNumber from Seria or OrderNumber if available
+                int tableNumber = int.TryParse(table.Seria, out int seriaNumber) ? seriaNumber : table.OrderNumber;
+
+                if (!tableOrders.ContainsKey(tableNumber))
+                {
+                    tableOrders[tableNumber] = new List<ContractorOrderTable>();
+                }
+
+                // Add or update the table's orders, accepting more lenient filtering
+                var validTables = data.Tables.Where(t =>
+                    int.TryParse(t.Seria, out int tn) ? tn == tableNumber : t.OrderNumber == tableNumber)
+                    .Where(t => !string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0) // More lenient filter
+                    .ToList();
+
+                tableOrders[tableNumber] = validTables.Any() ? validTables : new List<ContractorOrderTable>();
+
+                // Update button style and order counts
                 foreach (Button btn in tablesPanel.Children)
                 {
-                    if (Convert.ToInt32(btn.Tag) == table.TableNumber)
+                    if (btn.Tag is TableButtonData tagData && tagData.TableNumber == tableNumber)
                     {
-                        if (table.Orders.Count > 0 && table.TableNumber != currentSelectedTable)
+                        bool hasOrders = validTables.Any(t => !string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0);
+                        bool isBusy = hasOrders && validTables.Any(t => !t.IsCompleted); // Check if any order is not completed
+                        int productsCount = validTables.Count; // Total number of orders (products)
+                        int completedProductsCount = validTables.Count(t => t.IsCompleted); // Completed orders based on IsCompleted
+
+                        string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
+                        tagData.OrderCountText = orderCountText; // Update order counts in TableButtonData
+
+                        if (tableNumber != currentSelectedTable)
                         {
-                            btn.Style = (Style)FindResource("BusyTableButtonStyle"); // Red for busy
-                        }
-                        else if (table.Orders.Count == 0 && table.TableNumber != currentSelectedTable)
-                        {
-                            btn.Style = (Style)FindResource("TableButtonStyle"); // Blue for free
+                            btn.Style = isBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("TableButtonStyle");
                         }
                         break;
                     }
                 }
             }
 
+            // Restore any existing orders not updated by the new data
+            foreach (var kvp in existingTableOrders)
+            {
+                if (!tableOrders.ContainsKey(kvp.Key))
+                {
+                    tableOrders[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Reload orders for the currently selected table after processing
             if (currentSelectedTable > 0)
             {
                 LoadTableOrders(currentSelectedTable);
             }
         }
 
-        private void ProcessTableData(TableOrderResponse data)
+        private void ProcessTableData(ContractorOrder data)
         {
             if (data == null || data.Tables == null) return;
 
             int tableNumber = currentSelectedTable; // Use the currently selected table number
+            // Infer TableNumber from Seria or OrderNumber
+            tableNumber = data.Tables.FirstOrDefault(t => !string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0)?.OrderNumber ?? tableNumber;
 
-            // Map response data to OrderItem for consistency with existing UI
-            var orderItems = data.Tables.Select(t => new OrderItem
+            if (tableNumber <= 0)
             {
-                Id = t.Id,
-                Nomi = t.ProductShortName,
-                Narxi = t.EstimatedPrice,
-                Soni = t.Quantity,
-                Summa = t.Amount
-            }).ToList();
+                // Try to infer from Seria if OrderNumber fails
+                tableNumber = data.Tables.FirstOrDefault(t => !string.IsNullOrEmpty(t.Seria) && int.TryParse(t.Seria, out int seria))?.OrderNumber ?? currentSelectedTable;
+            }
 
-            tableOrders[tableNumber] = orderItems;
+            // Preserve existing tableOrders for this table
+            var existingOrders = tableOrders.ContainsKey(tableNumber) ? new List<ContractorOrderTable>(tableOrders[tableNumber]) : new List<ContractorOrderTable>();
 
-            LoadTableOrders(tableNumber);
+            // Store the list of ContractorOrderTable for the selected table, with lenient filtering
+            if (!tableOrders.ContainsKey(tableNumber))
+            {
+                tableOrders[tableNumber] = new List<ContractorOrderTable>();
+            }
+
+            var validTables = data.Tables.Where(t => !string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0).ToList();
+            tableOrders[tableNumber] = validTables.Any() ? validTables : existingOrders; // Use existing orders if no new valid data
+
+            // Update button style and order counts for the selected table
+            foreach (Button btn in tablesPanel.Children)
+            {
+                if (btn.Tag is TableButtonData tagData && tagData.TableNumber == tableNumber)
+                {
+                    int productsCount = tableOrders[tableNumber].Count; // Total number of orders (products)
+                    int completedProductsCount = tableOrders[tableNumber].Count(t => t.IsCompleted); // Completed orders based on IsCompleted
+
+                    string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
+                    tagData.OrderCountText = orderCountText; // Update order counts in TableButtonData
+
+                    bool isBusy = productsCount > 0 && tableOrders[tableNumber].Any(t => !t.IsCompleted);
+                    btn.Style = isBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("SelectedTableButtonStyle");
+                    break;
+                }
+            }
+
+            // Reload orders for the currently selected table after processing
+            LoadTableOrders(tableNumber, data.Currency);
         }
 
         private void btnGetData_Click(object sender, RoutedEventArgs e)
@@ -543,9 +588,9 @@ namespace Restaurants.Class
         private decimal GetDecimalValueFromText(string text)
         {
             // Extract numeric value from formatted currency text
-            string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "");
-            decimal.TryParse(numericText, out decimal result);
-            return result;
+            if (string.IsNullOrEmpty(text)) return 0;
+            string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "").Trim();
+            return decimal.TryParse(numericText, out decimal result) ? result : 0;
         }
 
         private void btnPrint_Click(object sender, RoutedEventArgs e)
@@ -556,7 +601,7 @@ namespace Restaurants.Class
                 return;
             }
 
-            if (!tableOrders.ContainsKey(currentSelectedTable) || tableOrders[currentSelectedTable].Count == 0)
+            if (!tableOrders.ContainsKey(currentSelectedTable) || !tableOrders[currentSelectedTable].Any())
             {
                 MessageBox.Show("Tanlangan stolda buyurtmalar mavjud emas", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
@@ -570,36 +615,41 @@ namespace Restaurants.Class
                 OrderDate = lblSanaValue.Text,
                 OrderTime = lblVaqtValue.Text,
                 CheckNumber = lblChekRaqamiValue.Text.TrimStart('#'),
-                Orders = tableOrders[currentSelectedTable],
-                TotalAmount = GetDecimalValueFromText(lblJamiValue.Text),
-                ServiceFee = GetDecimalValueFromText(lblXizmatValue.Text),
-                GrandTotal = GetDecimalValueFromText(lblTotalValue.Text)
+                Orders = tableOrders[currentSelectedTable].Select(item => new OrderItem
+                {
+                    Id = item.Id,
+                    ProductShortName = item.ProductShortName ?? "No Name",
+                    ContractorRequirement = item.ContractorRequirement ?? "No Details",
+                    Quantity = (int)(item.Quantity > 0 ? item.Quantity : 1), // Default to 1 if zero or negative
+                    EstimatedPrice = item.EstimatedPrice > 0 ? item.EstimatedPrice : 0,
+                    Amount = item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), // Calculate if Amount is 0
+                    TableNumber = currentSelectedTable // Infer TableNumber
+                }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList(), // Only filter out items with no name
+                TotalAmount = GetDecimalValueFromText(lblAmountValue.Text),
+                ServiceFee = GetDecimalValueFromText(lblAdditinalPaymentValue.Text),
+                GrandTotal = GetDecimalValueFromText(lblTotalAmountValue.Text)
             };
 
-
-            string txtForPrint = $"Zakaz N#: {122}\n";
-            foreach (var item in printOrder.Orders) 
+            string txtForPrint = $"Zakaz N#: {printOrder.CheckNumber}\n";
+            foreach (var item in printOrder.Orders)
             {
-                txtForPrint += $"{item.Nomi}          {item.Soni}  {item.Summa} \n";
+                txtForPrint += $"{item.ProductShortName.PadRight(20)} {item.Quantity.ToString().PadLeft(5)} {FormatCurrency(item.Amount)}\n";
             }
 
-            txtForPrint += $"Summa: {GetDecimalValueFromText(lblJamiValue.Text)} \n" +
-                $"Xizmat haqi: {GetDecimalValueFromText(lblXizmatValue.Text)}\n" +
-                $"Jami : {GetDecimalValueFromText(lblTotalValue.Text)}";
+            txtForPrint += $"Summa: {FormatCurrency(printOrder.TotalAmount)}\n" +
+                           $"Xizmat haqi: {FormatCurrency(printOrder.ServiceFee)}\n" +
+                           $"Jami: {FormatCurrency(printOrder.GrandTotal)}";
 
             _printer.PrintText(txtForPrint);
-
-
-            //PrintToXP80C(printOrder);
         }
 
-        static void PrintToXP80C(PrintOrder order)
+        private static void PrintToXP80C(PrintOrder order)
         {
             try
             {
                 string printerName = "XP-80C";
 
-                // Printer borligini tekshirish
+                // Check if printer exists
                 bool printerExists = false;
                 foreach (string installedPrinter in PrinterSettings.InstalledPrinters)
                 {
@@ -615,13 +665,13 @@ namespace Restaurants.Class
                     throw new Exception($"\"{printerName}\" nomli printer topilmadi. Iltimos, printer ulanganligini tekshiring.");
                 }
 
-                // ESC/POS formatida chek yaratish
+                // Create receipt in ESC/POS format
                 StringBuilder receipt = new StringBuilder();
-                receipt.Append("\x1B\x40"); // ESC @ - Printerni reset qilish
-                receipt.Append("\x1B\x61\x01"); // Markazga joylash
-                receipt.Append("\x1D\x21\x11"); // Katta font
+                receipt.Append("\x1B\x40"); // ESC @ - Reset printer
+                receipt.Append("\x1B\x61\x01"); // Center alignment
+                receipt.Append("\x1D\x21\x11"); // Large font
                 receipt.AppendLine(order.RestaurantName);
-                receipt.Append("\x1D\x21\x00"); // Oddiy font
+                receipt.Append("\x1D\x21\x00"); // Normal font
                 receipt.AppendLine($"{order.OrderDate} {order.OrderTime}");
                 receipt.AppendLine($"Chek №{order.CheckNumber}");
                 receipt.AppendLine($"Stol: {order.TableNumber}");
@@ -631,26 +681,26 @@ namespace Restaurants.Class
                 int itemNumber = 1;
                 foreach (var item in order.Orders)
                 {
-                    string name = item.Nomi.Length > 15 ? item.Nomi.Substring(0, 15) : item.Nomi.PadRight(15);
-                    string qty = item.Soni.ToString().PadLeft(4);
-                    string price = item.Narxi.ToString("0.00").PadLeft(7);
-                    string amount = item.Summa.ToString("0.00").PadLeft(7);
+                    string name = item.ProductShortName.Length > 15 ? item.ProductShortName.Substring(0, 15) : item.ProductShortName.PadRight(15);
+                    string qty = item.Quantity.ToString().PadLeft(4);
+                    string price = item.EstimatedPrice.ToString("0.00").PadLeft(7);
+                    string amount = item.Amount.ToString("0.00").PadLeft(7);
                     receipt.AppendLine($"{itemNumber++.ToString().PadLeft(2)} {name} {qty} {price} {amount}");
                 }
 
                 receipt.AppendLine(new string('-', 32));
-                receipt.Append("\x1B\x61\x02"); // O‘ngga tekislash
+                receipt.Append("\x1B\x61\x02"); // Right alignment
                 receipt.AppendLine($"Jami:         {order.TotalAmount:0.00}");
                 receipt.AppendLine($"Xizmat haqi:  {order.ServiceFee:0.00}");
-                receipt.Append("\x1D\x21\x01"); // Katta shrift
+                receipt.Append("\x1D\x21\x01"); // Large font
                 receipt.AppendLine($"UMUMIY:       {order.GrandTotal:0.00}");
-                receipt.Append("\x1D\x21\x00"); // Normal shrift
+                receipt.Append("\x1D\x21\x00"); // Normal font
 
-                receipt.Append("\x1B\x61\x01"); // Markazga joylash
+                receipt.Append("\x1B\x61\x01"); // Center alignment
                 receipt.AppendLine("Tashrifingiz uchun rahmat!");
-                receipt.Append("\x1D\x56\x00"); // Qog‘ozni kesish
+                receipt.Append("\x1D\x56\x00"); // Cut paper
 
-                // Printerga ESC/POS buyrug‘ini yuborish
+                // Send ESC/POS command to printer
                 bool result = PrinterHelper.SendStringToPrinter(printerName, receipt.ToString());
 
                 if (result)
@@ -699,5 +749,14 @@ namespace Restaurants.Class
                 btnBackToTop.Visibility = Visibility.Collapsed;
             }
         }
-    }  
+    }
+
+    // Updated TableButtonData to include OrderCountText
+    public class TableButtonData
+    {
+        public int TableNumber { get; set; }
+        public int ContractorId { get; set; }
+        public int? NotCompletedOrderId { get; set; }
+        public string OrderCountText { get; set; } = "0/0"; // Default to 0/0 for order counts
+    }
 }

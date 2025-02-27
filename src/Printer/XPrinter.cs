@@ -71,7 +71,7 @@ public class XPrinter
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Error sending ZPL: " + ex.Message);
+            MessageBox.Show("Error sending ZPL: " + ex.Message);
         }
     }
 

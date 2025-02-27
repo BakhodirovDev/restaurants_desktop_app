@@ -8,6 +8,7 @@
 		<UseWPF>true</UseWPF>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="RawPrint.NetStd" Version="1.0.0" />
 		<PackageReference Include="System.Drawing.Common" Version="9.0.2" />
