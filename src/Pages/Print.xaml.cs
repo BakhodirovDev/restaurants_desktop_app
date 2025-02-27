@@ -246,6 +246,11 @@ namespace Restaurants.Classes
                     {
                         bool btnIsBusy = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrderTable> btnOrders) && btnOrders.Any(o => !o.IsCompleted);
                         btn.Style = btnIsBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("TableButtonStyle");
+                        // Update order counts for the previously selected button
+                        int productsCount = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrderTable> prevOrders) ? prevOrders.Count : 0;
+                        int completedProductsCount = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrderTable> prevCompletedOrders) ? prevCompletedOrders.Count(o => o.IsCompleted) : 0;
+                        btnData.OrderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
+                        btn.Tag = btnData; // Update the Tag to reflect new counts
                         break;
                     }
                 }
@@ -255,6 +260,12 @@ namespace Restaurants.Classes
             clickedButton.Style = isBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("SelectedTableButtonStyle");
             currentSelectedTable = tableNumber;
             lblStolValue.Text = "#" + tableNumber;
+
+            // Update order counts for the newly selected button
+            int newProductsCount = tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> newOrders) ? newOrders.Count : 0;
+            int newCompletedProductsCount = tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> newCompletedOrders) ? newCompletedOrders.Count(o => o.IsCompleted) : 0;
+            buttonData.OrderCountText = newProductsCount > 0 ? $"{newCompletedProductsCount}/{newProductsCount}" : "0/0";
+            clickedButton.Tag = buttonData; // Update the Tag to reflect new counts
 
             // Reload orders immediately after selecting the table, even if busy
             LoadTableOrders(tableNumber);
@@ -279,8 +290,8 @@ namespace Restaurants.Classes
                     ProductShortName = item.ProductShortName ?? "No Name",
                     ContractorRequirement = item.ContractorRequirement ?? "No Details",
                     Quantity = (int)(item.Quantity > 0 ? item.Quantity : 1), // Default to 1 if zero or negative
-                    EstimatedPrice = item.EstimatedPrice > 0 ? item.EstimatedPrice : 0,
-                    Amount = item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), // Calculate if Amount is 0
+                    EstimatedPrice = Math.Round(item.EstimatedPrice > 0 ? item.EstimatedPrice : 0, 1), // Round to 1 decimal place
+                    Amount = Math.Round(item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), 1), // Round to 1 decimal place
                     TableNumber = tableNumber // Infer TableNumber from context
                 }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList(); // Only filter out items with no name
 
@@ -301,24 +312,24 @@ namespace Restaurants.Classes
                 else
                 {
                     Console.WriteLine($"No valid orders found for table {tableNumber}");
-                    lblAmountValue.Text = "0 so'm";
-                    lblAdditinalPaymentValue.Text = "0 so'm";
-                    lblTotalAmountValue.Text = "0 so'm";
+                    lblAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
+                    lblAdditinalPaymentValue.Text = "0.0 so'm"; // Updated to one decimal place
+                    lblTotalAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
                 }
             }
             else
             {
                 Console.WriteLine($"No orders in tableOrders for table {tableNumber}");
-                lblAmountValue.Text = "0 so'm";
-                lblAdditinalPaymentValue.Text = "0 so'm";
-                lblTotalAmountValue.Text = "0 so'm";
+                lblAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
+                lblAdditinalPaymentValue.Text = "0.0 so'm"; // Updated to one decimal place
+                lblTotalAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
             }
         }
 
         private void CalculateTotals(List<OrderItem> items)
         {
-            decimal total = items.Sum(item => item.Amount);
-            decimal serviceFee = total * 0.1m; // 10% service fee
+            decimal total = Math.Round(items.Sum(item => item.Amount), 1); // Round to 1 decimal place
+            decimal serviceFee = Math.Round(total * 0.1m, 1); // Round to 1 decimal place
             lblAmountValue.Text = FormatCurrency(total);
             lblAdditinalPaymentValue.Text = FormatCurrency(serviceFee);
             lblTotalAmountValue.Text = FormatCurrency(total + serviceFee);
@@ -326,7 +337,7 @@ namespace Restaurants.Classes
 
         private string FormatCurrency(decimal value)
         {
-            return $"{value:0.00} so'm";
+            return $"{Math.Round(value, 1):0.0} so'm"; // Format to one decimal place with explicit rounding
         }
 
         private void Timer_Tick(object sender, EventArgs e)
@@ -471,40 +482,34 @@ namespace Restaurants.Classes
         {
             if (data == null || data.Tables == null) return;
 
-            // Preserve existing tableOrders and update with new data
             var existingTableOrders = new Dictionary<int, List<ContractorOrderTable>>(tableOrders);
 
-            // Update tableOrders with new data, preserving existing entries if possible
             foreach (var table in data.Tables)
             {
-                // Infer TableNumber from Seria or OrderNumber if available
                 int tableNumber = int.TryParse(table.Seria, out int seriaNumber) ? seriaNumber : table.OrderNumber;
-
                 if (!tableOrders.ContainsKey(tableNumber))
                 {
                     tableOrders[tableNumber] = new List<ContractorOrderTable>();
                 }
 
-                // Add or update the table's orders, accepting more lenient filtering
-                var validTables = data.Tables.Where(t =>
-                    int.TryParse(t.Seria, out int tn) ? tn == tableNumber : t.OrderNumber == tableNumber)
-                    .Where(t => !string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0) // More lenient filter
+                var validTables = data.Tables
+                    .Where(t => (int.TryParse(t.Seria, out int tn) ? tn == tableNumber : t.OrderNumber == tableNumber))
+                    .Where(t => !string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0)
                     .ToList();
 
                 tableOrders[tableNumber] = validTables.Any() ? validTables : new List<ContractorOrderTable>();
 
-                // Update button style and order counts
                 foreach (Button btn in tablesPanel.Children)
                 {
                     if (btn.Tag is TableButtonData tagData && tagData.TableNumber == tableNumber)
                     {
                         bool hasOrders = validTables.Any(t => !string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0);
-                        bool isBusy = hasOrders && validTables.Any(t => !t.IsCompleted); // Check if any order is not completed
-                        int productsCount = validTables.Count; // Total number of orders (products)
-                        int completedProductsCount = validTables.Count(t => t.IsCompleted); // Completed orders based on IsCompleted
+                        bool isBusy = hasOrders && validTables.Any(t => !t.IsCompleted);
+                        int productsCount = validTables.Count;
+                        int completedProductsCount = validTables.Count(t => t.IsCompleted);
 
                         string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
-                        tagData.OrderCountText = orderCountText; // Update order counts in TableButtonData
+                        tagData.OrderCountText = orderCountText;
 
                         if (tableNumber != currentSelectedTable)
                         {
@@ -515,7 +520,6 @@ namespace Restaurants.Classes
                 }
             }
 
-            // Restore any existing orders not updated by the new data
             foreach (var kvp in existingTableOrders)
             {
                 if (!tableOrders.ContainsKey(kvp.Key))
@@ -524,7 +528,6 @@ namespace Restaurants.Classes
                 }
             }
 
-            // Reload orders for the currently selected table after processing
             if (currentSelectedTable > 0)
             {
                 LoadTableOrders(currentSelectedTable);
@@ -590,7 +593,11 @@ namespace Restaurants.Classes
             // Extract numeric value from formatted currency text
             if (string.IsNullOrEmpty(text)) return 0;
             string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "").Trim();
-            return decimal.TryParse(numericText, out decimal result) ? result : 0;
+            if (decimal.TryParse(numericText, out decimal result))
+            {
+                return Math.Round(result, 1); // Round to 1 decimal place
+            }
+            return 0;
         }
 
         private void btnPrint_Click(object sender, RoutedEventArgs e)
@@ -621,13 +628,13 @@ namespace Restaurants.Classes
                     ProductShortName = item.ProductShortName ?? "No Name",
                     ContractorRequirement = item.ContractorRequirement ?? "No Details",
                     Quantity = (int)(item.Quantity > 0 ? item.Quantity : 1), // Default to 1 if zero or negative
-                    EstimatedPrice = item.EstimatedPrice > 0 ? item.EstimatedPrice : 0,
-                    Amount = item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), // Calculate if Amount is 0
+                    EstimatedPrice = Math.Round(item.EstimatedPrice > 0 ? item.EstimatedPrice : 0, 1), // Round to 1 decimal place
+                    Amount = Math.Round(item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), 1), // Round to 1 decimal place
                     TableNumber = currentSelectedTable // Infer TableNumber
                 }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList(), // Only filter out items with no name
-                TotalAmount = GetDecimalValueFromText(lblAmountValue.Text),
-                ServiceFee = GetDecimalValueFromText(lblAdditinalPaymentValue.Text),
-                GrandTotal = GetDecimalValueFromText(lblTotalAmountValue.Text)
+                TotalAmount = Math.Round(GetDecimalValueFromText(lblAmountValue.Text), 1), // Round to 1 decimal place
+                ServiceFee = Math.Round(GetDecimalValueFromText(lblAdditinalPaymentValue.Text), 1), // Round to 1 decimal place
+                GrandTotal = Math.Round(GetDecimalValueFromText(lblTotalAmountValue.Text), 1) // Round to 1 decimal place
             };
 
             _printer.PrintText(printOrder);

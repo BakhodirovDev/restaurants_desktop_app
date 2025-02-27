@@ -90,7 +90,6 @@ public class XPrinter
     private string BuildPrintText(PrintOrder order)
     {
         var sb = new StringBuilder();
-
         sb.AppendLine($"Zakaz N#: {order.CheckNumber}");
         sb.AppendLine($"Restoran: {order.RestaurantName}");
         sb.AppendLine($"Ofitsiant: {order.WaiterName}");
@@ -98,16 +97,21 @@ public class XPrinter
         sb.AppendLine($"Stol: {order.TableNumber}");
         sb.AppendLine(new string('-', 40));
 
+        // Ustun sarlavhalari
+        sb.AppendLine($"Mahsulot    |    Soni    |    Summa");
+        sb.AppendLine(new string('-', 40));
+
         // Har bir buyurtma elementini chiqaramiz
         foreach (var item in order.Orders)
         {
-            sb.AppendLine($"{item.ProductShortName.PadRight(20)} {item.Quantity.ToString().PadLeft(5)} {item.Amount} UZS");
+            sb.AppendLine($"{item.ProductShortName.PadRight(12)} | {item.Quantity.ToString().PadLeft(8)} | {item.Amount.ToString().PadLeft(8)} UZS");
         }
 
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Summa: {order.TotalAmount} UZS");
-        sb.AppendLine($"Xizmat haqi: {order.ServiceFee} UZS");
-        sb.AppendLine($"Jami: {order.GrandTotal} UZS");
+        sb.AppendLine($"Summa: {order.TotalAmount.ToString().PadLeft(26)} UZS");
+        sb.AppendLine($"Xizmat haqi: {order.ServiceFee.ToString().PadLeft(20)} UZS");
+        sb.AppendLine(new string('-', 40));
+        sb.AppendLine($"Jami: {order.GrandTotal.ToString().PadLeft(27)} UZS");
 
         return sb.ToString();
     }
