@@ -1,7 +1,7 @@
 ﻿<Window x:Class="Restaurants.Classes.Print"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Restaurant" 
+        Title="710 Boxoro kafe" 
         WindowStartupLocation="CenterScreen" 
         WindowState="Maximized" 
         Background="#F8F9FA"

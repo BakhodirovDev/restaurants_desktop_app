@@ -1,5 +1,8 @@
-﻿using System.Net.Http;
+﻿using Restaurants.Class.Printer;
+using System.Globalization;
+using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows;
 
 namespace Restaurants.Printer;
@@ -50,29 +53,63 @@ public class XPrinter
         }
     }
 
-    public void PrintText(string text)
+    public void PrintText(PrintOrder printOrder)
     {
+        // PrintOrder obyektidan bosib chiqarish uchun matnni yaratamiz
+        string textToPrint = BuildPrintText(printOrder);
 
         try
         {
+            // Printer portini ochamiz
             OpenPort();
 
-            if (openStatus == 0)
+            // Printer tayyorligini tekshiramiz (0 - tayyor)
+            if (openStatus != 0)
             {
-                MainWindow.PrintText(this.printer, text, 0, 0);
-                MainWindow.FeedLine(this.printer, 1);
-                var result = MainWindow.CutPaperWithDistance(this.printer, 10);
+                MessageBox.Show("Printer tayyor emas.", "Xato", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
-                if (result == 0)
-                {
-                    MessageBox.Show("Urra");
-                }
+            // Matnni printerga yuboramiz
+            MainWindow.PrintText(this.printer, textToPrint, 0, 0);
+            MainWindow.FeedLine(this.printer, 1);
+
+            // Qog'ozni kesish amali bajariladi
+            int cutResult = MainWindow.CutPaperWithDistance(this.printer, 10);
+            if (cutResult == 0)
+            {
+                MessageBox.Show("Bosib chiqarish muvaffaqiyatli yakunlandi.", "Ma'lumot", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Error sending ZPL: " + ex.Message);
+            MessageBox.Show("Print komandasini yuborishda xato: " + ex.Message, "Print Xato", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private string BuildPrintText(PrintOrder order)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"Zakaz N#: {order.CheckNumber}");
+        sb.AppendLine($"Restoran: {order.RestaurantName}");
+        sb.AppendLine($"Ofitsiant: {order.WaiterName}");
+        sb.AppendLine($"Sana: {order.OrderDate}   Vaqt: {order.OrderTime}");
+        sb.AppendLine($"Stol: {order.TableNumber}");
+        sb.AppendLine(new string('-', 40));
+
+        // Har bir buyurtma elementini chiqaramiz
+        foreach (var item in order.Orders)
+        {
+            sb.AppendLine($"{item.ProductShortName.PadRight(20)} {item.Quantity.ToString().PadLeft(5)} {item.Amount} UZS");
+        }
+
+        sb.AppendLine(new string('-', 40));
+        sb.AppendLine($"Summa: {order.TotalAmount} UZS");
+        sb.AppendLine($"Xizmat haqi: {order.ServiceFee} UZS");
+        sb.AppendLine($"Jami: {order.GrandTotal} UZS");
+
+        return sb.ToString();
     }
 
 }
