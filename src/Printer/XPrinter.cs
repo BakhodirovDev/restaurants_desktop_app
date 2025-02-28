@@ -13,6 +13,7 @@ public class XPrinter
     public XPrinter()
     {
         this.printer = MainWindow.InitPrinter("");
+
     }
 
     #region Importing dll methods
