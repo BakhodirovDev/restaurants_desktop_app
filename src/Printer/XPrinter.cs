@@ -109,6 +109,7 @@ public class XPrinter
         for (int i = 0; i < order.Orders.Count; i++)
         {
             var item = order.Orders[i];
+            string sequenceNumber = (i + 1).ToString("D2");
             string productName = FormatProductName(item.ProductShortName, 20);
             string calc = $"{item.Quantity} * {FormatAmount(item.EstimatedPrice)} = {FormatAmount(item.Amount)}";
             int padding = 48 - productName.Length - calc.Length;
