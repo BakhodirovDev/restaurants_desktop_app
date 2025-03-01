@@ -652,7 +652,7 @@ namespace Restaurants.Classes
             string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "").Trim();
             if (decimal.TryParse(numericText, out decimal result))
             {
-                return Math.Round(result, 1); // Round to 1 decimal place
+                return Math.Round(result/10, 1); // Round to 1 decimal place
             }
             return 0;
         }
