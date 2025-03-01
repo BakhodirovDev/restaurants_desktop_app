@@ -691,9 +691,9 @@ namespace Restaurants.Classes
                         Amount = Math.Round(item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), 1), // Round to 1 decimal place
                         TableNumber = currentSelectedTable // Infer TableNumber
                     }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList(), // Only filter out items with no name
-                TotalAmount = Math.Round(tableOrders[currentSelectedTable].FirstOrDefault()?.TotalAmount ?? 0, 1), // Round to 1 decimal place
-                ServiceFee = Math.Round((tableOrders[currentSelectedTable].FirstOrDefault()?.TotalAmount ?? 0) * 0.1m, 1), // Round to 1 decimal place
-                GrandTotal = Math.Round((tableOrders[currentSelectedTable].FirstOrDefault()?.TotalAmount ?? 0) * 1.1m, 1) // Round to 1 decimal place (Total + 10% service fee)
+                TotalAmount = tableOrders[currentSelectedTable].FirstOrDefault()?.Amount ?? 0, // Round to 1 decimal place
+                ServiceFee = tableOrders[currentSelectedTable].FirstOrDefault()?.AdditinalPayment ?? 0, // Round to 1 decimal place
+                GrandTotal = tableOrders[currentSelectedTable].FirstOrDefault()?.TotalAmount ?? 0 // Round to 1 decimal place (Total + 10% service fee)
             };
 
             string txtForPrint = BuildPrintText(printOrder);
@@ -751,7 +751,7 @@ namespace Restaurants.Classes
             string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0.0").PadLeft(8);
             string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0.0").PadLeft(8);
             sb.AppendLine($"Summa: {totalFormatted} UZS");
-            sb.AppendLine($"Xizmat haqi: {serviceFeeFormatted} UZS");
+            sb.AppendLine($"Xizmat haqi(12%): {serviceFeeFormatted} UZS");
             sb.AppendLine(new string('-', 48));
             sb.AppendLine($"Jami: {grandTotalFormatted} UZS");
 

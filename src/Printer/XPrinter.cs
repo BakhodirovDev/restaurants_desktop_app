@@ -95,7 +95,8 @@ public class XPrinter
         // Header Section - Katta shrift
         //sb.AppendLine("\x1B\x61\x01"); // Center align
         //sb.AppendLine("\x1D\x21\x11"); // 2x kenglik va 2x balandlik
-        sb.AppendLine($"{order.RestaurantName}");
+        sb.AppendLine($"");
+        sb.AppendLine($"710 BUXORO KAFE");
         //sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
 
         // Order Details - Left aligned
@@ -132,7 +133,7 @@ public class XPrinter
         int totalDots = 48 - totalLabel.Length - totalValue.Length;
         sb.AppendLine($"{totalLabel}{new string('.', totalDots)}{totalValue}");
 
-        string serviceLabel = "Xizmat haqi:";
+        string serviceLabel = "Xizmat haqi (12%):";
         string serviceValue = $"{FormatAmount(order.ServiceFee)} UZS";
         int serviceDots = 48 - serviceLabel.Length - serviceValue.Length;
         sb.AppendLine($"{serviceLabel}{new string('.', serviceDots)}{serviceValue}");
