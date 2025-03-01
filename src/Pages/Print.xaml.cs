@@ -22,7 +22,7 @@ namespace Restaurants.Classes
         private DispatcherTimer timeTimer;
         private int countdown = 3;
         private int currentSelectedTable = -1;
-        private Dictionary<int, List<ContractorOrderTable>> tableOrders = new Dictionary<int, List<ContractorOrderTable>>();
+        private Dictionary<int, List<ContractorOrder>> tableOrders = new Dictionary<int, List<ContractorOrder>>();
 
         private readonly XPrinter _printer;
 
@@ -191,10 +191,10 @@ namespace Restaurants.Classes
                     // Calculate order counts for this table
                     int productsCount = 0; // Total number of orders (products)
                     int completedProductsCount = 0; // Number of completed orders
-                    if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> orders))
+                    if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrder> orders))
                     {
-                        productsCount = orders.Count; // Total orders (products)
-                        completedProductsCount = orders.Count(o => o.IsCompleted); // Completed orders based on IsCompleted
+                        productsCount = orders.Sum(o => o.TotalProductsCount); // Total orders from ContractorOrder
+                        completedProductsCount = orders.Sum(o => o.CompletedProductsCount); // Completed orders from ContractorOrder
                     }
 
                     string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
@@ -233,7 +233,7 @@ namespace Restaurants.Classes
 
             // Preserve the busy status of the table when selecting it
             bool isBusy = false;
-            if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> orders) && orders != null && orders.Any(o => !o.IsCompleted))
+            if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrder> orders) && orders != null && orders.Any(o => o.StatusId != 3)) // Assuming StatusId 3 means completed
             {
                 isBusy = true;
             }
@@ -244,11 +244,11 @@ namespace Restaurants.Classes
                 {
                     if (btn.Tag is TableButtonData btnData && btnData.TableNumber == currentSelectedTable)
                     {
-                        bool btnIsBusy = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrderTable> btnOrders) && btnOrders != null && btnOrders.Any(o => !o.IsCompleted);
+                        bool btnIsBusy = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrder> btnOrders) && btnOrders != null && btnOrders.Any(o => o.StatusId != 3);
                         btn.Style = btnIsBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("TableButtonStyle");
                         // Update order counts for the previously selected button
-                        int productsCount = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrderTable> prevOrders) ? (prevOrders != null ? prevOrders.Count : 0) : 0;
-                        int completedProductsCount = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrderTable> prevCompletedOrders) ? (prevCompletedOrders != null ? prevCompletedOrders.Count(o => o.IsCompleted) : 0) : 0;
+                        int productsCount = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrder> prevOrders) ? (prevOrders != null ? prevOrders.Sum(o => o.TotalProductsCount) : 0) : 0;
+                        int completedProductsCount = tableOrders.TryGetValue(btnData.TableNumber, out List<ContractorOrder> prevCompletedOrders) ? (prevCompletedOrders != null ? prevCompletedOrders.Sum(o => o.CompletedProductsCount) : 0) : 0;
                         btnData.OrderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
                         btn.Tag = btnData; // Update the Tag to reflect new counts
                         break;
@@ -256,14 +256,20 @@ namespace Restaurants.Classes
                 }
             }
 
+            // Calculate responsibleName for the newly selected table only
+            string responsibleName = tableOrders.TryGetValue(tableNumber, out List<ContractorOrder> responsibleOrders)
+                                     ? (responsibleOrders != null && responsibleOrders.Any() ? responsibleOrders.FirstOrDefault()?.Responsible ?? "Null" : "Null")
+                                     : "Null";
+
             // Set the style for the selected button, preserving busy status if applicable
             clickedButton.Style = isBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("SelectedTableButtonStyle");
             currentSelectedTable = tableNumber;
+            lblOfitsiantValue.Text = responsibleName; // Assign the responsible name to lblOfitsiantValue.Text
             lblStolValue.Text = "#" + tableNumber;
 
             // Update order counts for the newly selected button
-            int newProductsCount = tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> newOrders) ? (newOrders != null ? newOrders.Count : 0) : 0;
-            int newCompletedProductsCount = tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> newCompletedOrders) ? (newCompletedOrders != null ? newCompletedOrders.Count(o => o.IsCompleted) : 0) : 0;
+            int newProductsCount = tableOrders.TryGetValue(tableNumber, out List<ContractorOrder> newOrders) ? (newOrders != null ? newOrders.Sum(o => o.TotalProductsCount) : 0) : 0;
+            int newCompletedProductsCount = tableOrders.TryGetValue(tableNumber, out List<ContractorOrder> newCompletedOrders) ? (newCompletedOrders != null ? newCompletedOrders.Sum(o => o.CompletedProductsCount) : 0) : 0;
             buttonData.OrderCountText = newProductsCount > 0 ? $"{newCompletedProductsCount}/{newProductsCount}" : "0/0";
             clickedButton.Tag = buttonData; // Update the Tag to reflect new counts
 
@@ -281,10 +287,13 @@ namespace Restaurants.Classes
         {
             lvItems.Items.Clear();
 
-            if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrderTable> items) && items != null)
+            if (tableOrders.TryGetValue(tableNumber, out List<ContractorOrder> orders) && orders != null)
             {
+                // Combine all tables from all ContractorOrder objects for this table number
+                var allTables = orders.SelectMany(o => o.Tables ?? new List<ContractorOrderTable>()).Where(t => t != null).ToList();
+
                 // Map ContractorOrderTable to OrderItem for display, including busy tables
-                var orderItems = items.Select((item, index) => new OrderItem
+                var orderItems = allTables.Select((item, index) => new OrderItem
                 {
                     Id = item.Id,
                     ProductShortName = item.ProductShortName ?? "No Name",
@@ -517,36 +526,35 @@ namespace Restaurants.Classes
                 data = new ContractorOrder(); // Default to empty object if null
             }
 
-            var existingTableOrders = new Dictionary<int, List<ContractorOrderTable>>(tableOrders);
+            var existingTableOrders = new Dictionary<int, List<ContractorOrder>>(tableOrders);
 
             // Handle null Tables property
-            List<ContractorOrderTable> tables = data.Tables ?? new List<ContractorOrderTable>();
+            List<ContractorOrder> orders = new List<ContractorOrder> { data }; // Store the ContractorOrder directly
 
-            foreach (var table in tables)
+            foreach (var order in orders)
             {
-                int tableNumber = int.TryParse(table?.Seria, out int seriaNumber) ? seriaNumber : (table?.OrderNumber ?? 0);
+                int tableNumber = order.Tables?.FirstOrDefault(t => t != null)?.OrderNumber ?? 0; // Infer table number from the first valid table
                 if (tableNumber <= 0) continue; // Skip invalid table numbers
 
                 if (!tableOrders.ContainsKey(tableNumber))
                 {
-                    tableOrders[tableNumber] = new List<ContractorOrderTable>();
+                    tableOrders[tableNumber] = new List<ContractorOrder>();
                 }
 
-                var validTables = tables
-                    .Where(t => t != null && ((int.TryParse(t.Seria, out int tn) ? tn == tableNumber : t.OrderNumber == tableNumber)))
-                    .Where(t => !string.IsNullOrEmpty(t?.ProductShortName) || (t?.Quantity > 0) || (t?.Amount > 0))
-                    .ToList();
-
-                tableOrders[tableNumber] = validTables.Any() ? validTables : new List<ContractorOrderTable>();
+                // Add or update the ContractorOrder for this table number
+                if (!tableOrders[tableNumber].Any(o => o.Id == order.Id))
+                {
+                    tableOrders[tableNumber].Add(order);
+                }
 
                 foreach (Button btn in tablesPanel.Children)
                 {
                     if (btn.Tag is TableButtonData tagData && tagData.TableNumber == tableNumber)
                     {
-                        bool hasOrders = validTables.Any(t => t != null && (!string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0));
-                        bool isBusy = hasOrders && validTables.Any(t => t != null && !t.IsCompleted);
-                        int productsCount = validTables.Count(t => t != null);
-                        int completedProductsCount = validTables.Count(t => t != null && t.IsCompleted);
+                        bool hasOrders = order.Tables != null && order.Tables.Any(t => t != null && (!string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0));
+                        bool isBusy = hasOrders && order.Tables.Any(t => t != null && !t.IsCompleted);
+                        int productsCount = order.TotalProductsCount; // Use TotalProductsCount from ContractorOrder
+                        int completedProductsCount = order.CompletedProductsCount; // Use CompletedProductsCount from ContractorOrder
 
                         string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
                         tagData.OrderCountText = orderCountText;
@@ -595,29 +603,32 @@ namespace Restaurants.Classes
             }
 
             // Preserve existing tableOrders for this table
-            var existingOrders = tableOrders.ContainsKey(tableNumber) ? new List<ContractorOrderTable>(tableOrders[tableNumber]) : new List<ContractorOrderTable>();
+            var existingOrders = tableOrders.ContainsKey(tableNumber) ? new List<ContractorOrder>(tableOrders[tableNumber]) : new List<ContractorOrder>();
 
-            // Store the list of ContractorOrderTable for the selected table, with lenient filtering
+            // Store the list of ContractorOrder for the selected table
             if (!tableOrders.ContainsKey(tableNumber))
             {
-                tableOrders[tableNumber] = new List<ContractorOrderTable>();
+                tableOrders[tableNumber] = new List<ContractorOrder>();
             }
 
-            var validTables = tables.Where(t => t != null && (!string.IsNullOrEmpty(t.ProductShortName) || t.Quantity > 0 || t.Amount > 0)).ToList();
-            tableOrders[tableNumber] = validTables.Any() ? validTables : existingOrders; // Use existing orders if no new valid data
+            // Add or update the ContractorOrder for this table number
+            if (!tableOrders[tableNumber].Any(o => o.Id == data.Id))
+            {
+                tableOrders[tableNumber].Add(data);
+            }
 
             // Update button style and order counts for the selected table
             foreach (Button btn in tablesPanel.Children)
             {
                 if (btn.Tag is TableButtonData tagData && tagData.TableNumber == tableNumber)
                 {
-                    int productsCount = tableOrders[tableNumber].Count(t => t != null); // Total number of orders (products)
-                    int completedProductsCount = tableOrders[tableNumber].Count(t => t != null && t.IsCompleted); // Completed orders based on IsCompleted
+                    int productsCount = data.TotalProductsCount; // Use TotalProductsCount from ContractorOrder
+                    int completedProductsCount = data.CompletedProductsCount; // Use CompletedProductsCount from ContractorOrder
 
                     string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
                     tagData.OrderCountText = orderCountText; // Update order counts in TableButtonData
 
-                    bool isBusy = productsCount > 0 && tableOrders[tableNumber].Any(t => t != null && !t.IsCompleted);
+                    bool isBusy = productsCount > 0 && (data.StatusId != 3); // Assuming StatusId 3 means completed
                     btn.Style = isBusy ? (Style)FindResource("BusyTableButtonStyle") : (Style)FindResource("SelectedTableButtonStyle");
                     break;
                 }
@@ -654,7 +665,7 @@ namespace Restaurants.Classes
                 return;
             }
 
-            if (!tableOrders.ContainsKey(currentSelectedTable) || !tableOrders[currentSelectedTable].Any(t => t != null))
+            if (!tableOrders.ContainsKey(currentSelectedTable) || !tableOrders[currentSelectedTable].Any(o => o != null))
             {
                 MessageBox.Show("Tanlangan stolda buyurtmalar mavjud emas", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
@@ -663,12 +674,13 @@ namespace Restaurants.Classes
             var printOrder = new PrintOrder
             {
                 TableNumber = currentSelectedTable,
-                RestaurantName = lblRestoranValue.Text,
-                WaiterName = lblOfitsiantValue.Text,
-                OrderDate = lblSanaValue.Text,
-                OrderTime = lblVaqtValue.Text,
-                CheckNumber = lblChekRaqamiValue.Text.TrimStart('#'),
+                RestaurantName = tableOrders[currentSelectedTable].FirstOrDefault()?.OrganizationAreasOfActivity ?? "Null",
+                WaiterName = tableOrders[currentSelectedTable].FirstOrDefault()?.Responsible ?? "Null",
+                OrderDate = tableOrders[currentSelectedTable].FirstOrDefault()?.DocDate ?? "Null",
+                OrderTime = tableOrders[currentSelectedTable].FirstOrDefault()?.DocTime ?? "Null",
+                CheckNumber = tableOrders[currentSelectedTable].FirstOrDefault()?.DocNumber ?? "Null",
                 Orders = tableOrders[currentSelectedTable]
+                    .SelectMany(o => o.Tables ?? new List<ContractorOrderTable>())
                     .Where(item => item != null)
                     .Select(item => new OrderItem
                     {
@@ -680,9 +692,9 @@ namespace Restaurants.Classes
                         Amount = Math.Round(item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), 1), // Round to 1 decimal place
                         TableNumber = currentSelectedTable // Infer TableNumber
                     }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList(), // Only filter out items with no name
-                TotalAmount = Math.Round(GetDecimalValueFromText(lblAmountValue.Text), 1), // Round to 1 decimal place
-                ServiceFee = Math.Round(GetDecimalValueFromText(lblAdditinalPaymentValue.Text), 1), // Round to 1 decimal place
-                GrandTotal = Math.Round(GetDecimalValueFromText(lblTotalAmountValue.Text), 1) // Round to 1 decimal place
+                TotalAmount = Math.Round(tableOrders[currentSelectedTable].FirstOrDefault()?.TotalAmount ?? 0, 1), // Round to 1 decimal place
+                ServiceFee = Math.Round((tableOrders[currentSelectedTable].FirstOrDefault()?.TotalAmount ?? 0) * 0.1m, 1), // Round to 1 decimal place
+                GrandTotal = Math.Round((tableOrders[currentSelectedTable].FirstOrDefault()?.TotalAmount ?? 0) * 1.1m, 1) // Round to 1 decimal place (Total + 10% service fee)
             };
 
             string txtForPrint = BuildPrintText(printOrder);
@@ -736,9 +748,9 @@ namespace Restaurants.Classes
             // Right alignment for totals (ESC a 2)
             sb.Append("\x1B\x61\x02");
             // Format totals to one decimal place
-            string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0").PadLeft(8);
-            string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0").PadLeft(8);
-            string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0").PadLeft(8);
+            string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0.0").PadLeft(8);
+            string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0.0").PadLeft(8);
+            string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0.0").PadLeft(8);
             sb.AppendLine($"Summa: {totalFormatted} UZS");
             sb.AppendLine($"Xizmat haqi: {serviceFeeFormatted} UZS");
             sb.AppendLine(new string('-', 48));
