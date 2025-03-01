@@ -1,7 +1,9 @@
 ﻿using Restaurants.Class.Printer;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Restaurants.Printer;
 
@@ -88,16 +90,16 @@ public class XPrinter
         var sb = new StringBuilder();
 
         // Shrfitni standart holatga qaytarish
-        sb.AppendLine("\x1B\x21\x00");
+        //sb.AppendLine("\x1B\x21\x00");
 
         // Header Section - Katta shrift
-        sb.AppendLine("\x1B\x61\x01"); // Center align
-        sb.AppendLine("\x1D\x21\x11"); // 2x kenglik va 2x balandlik
+        //sb.AppendLine("\x1B\x61\x01"); // Center align
+        //sb.AppendLine("\x1D\x21\x11"); // 2x kenglik va 2x balandlik
         sb.AppendLine($"{order.RestaurantName}");
-        sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
+        //sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
 
         // Order Details - Left aligned
-        sb.AppendLine("\x1B\x61\x00"); // Left align
+        //sb.AppendLine("\x1B\x61\x00"); // Left align
         sb.AppendLine($"Zakaz N#:{order.CheckNumber}");
         sb.AppendLine($"Ofitsiant:{order.WaiterName}");
         sb.AppendLine($"Sana:{DateTime.Parse(order.OrderDate).ToString("dd.MM.yyyy")} Vaqt:{DateTime.Parse(order.OrderTime).ToString("HH:mm")}");
@@ -124,7 +126,7 @@ public class XPrinter
         sb.AppendLine();
 
         // Totals - Katta shrift va bo'shliqsiz
-        sb.AppendLine("\x1D\x21\x10"); // 2x kenglik
+        //sb.AppendLine("\x1D\x21\x10"); // 2x kenglik
         string totalLabel = "Summa:";
         string totalValue = $"{FormatAmount(order.TotalAmount)} UZS";
         int totalDots = 48 - totalLabel.Length - totalValue.Length;
@@ -141,14 +143,14 @@ public class XPrinter
         string grandValue = $"{FormatAmount(order.GrandTotal)} UZS";
         int grandDots = 48 - grandLabel.Length - grandValue.Length;
         sb.AppendLine($"{grandLabel}{new string('.', grandDots)}{grandValue}");
-        sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
+        //sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
 
         // Footer - Centered
-        sb.AppendLine("\x1B\x61\x01"); // Center align
+        //sb.AppendLine("\x1B\x61\x01"); // Center align
         sb.AppendLine("\nXaridingiz uchun rahmat!\n");
 
         // Add cut command
-        sb.AppendLine("\x1D\x56\x01"); // Paper cut
+        //sb.AppendLine("\x1D\x56\x01"); // Paper cut
 
         return sb.ToString();
     }
@@ -164,7 +166,12 @@ public class XPrinter
 
     private static string FormatAmount(decimal amount)
     {
-        return amount.ToString("#,##0.00");
+        var s = (int)amount;
+        return s.ToString("N0", new NumberFormatInfo()
+        {
+            NumberGroupSizes = new[] { 3 },
+            NumberGroupSeparator = "."
+        });
     }
 
 }

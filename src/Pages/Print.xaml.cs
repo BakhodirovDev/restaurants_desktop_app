@@ -641,7 +641,7 @@ namespace Restaurants.Classes
             string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "").Trim();
             if (decimal.TryParse(numericText, out decimal result))
             {
-                return Math.Round(result, 1); // Round to 1 decimal place
+                return Math.Round(result/10, 1); // Round to 1 decimal place
             }
             return 0;
         }
@@ -736,9 +736,9 @@ namespace Restaurants.Classes
             // Right alignment for totals (ESC a 2)
             sb.Append("\x1B\x61\x02");
             // Format totals to one decimal place
-            string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0").PadLeft(8);
-            string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0").PadLeft(8);
-            string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0").PadLeft(8);
+            string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0.0").PadLeft(8);
+            string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0.0").PadLeft(8);
+            string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0.0").PadLeft(8);
             sb.AppendLine($"Summa: {totalFormatted} UZS");
             sb.AppendLine($"Xizmat haqi: {serviceFeeFormatted} UZS");
             sb.AppendLine(new string('-', 48));
