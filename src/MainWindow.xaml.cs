@@ -1,12 +1,10 @@
 ﻿using Restaurants.Class;
+using Restaurants.Classes;
 using Restaurants.Printer;
-using System;
-using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -67,37 +65,7 @@ namespace Restaurants
             }
         }
 
-        private void InitializePrinter()
-        {
-
-            try
-            {
-                openPort();
-
-                if(openStatus == 0)
-                {
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    var result = MainWindow.CutPaperWithDistance(this.printer, 10);
-
-                    if (result == 0)
-                    {
-                        MessageBox.Show("Urra");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error sending ZPL: " + ex.Message);
-            }
-        }
-
+        
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             string username = UsernameTextBox.Text.Trim();
