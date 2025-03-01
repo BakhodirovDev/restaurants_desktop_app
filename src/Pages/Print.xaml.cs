@@ -292,17 +292,16 @@ namespace Restaurants.Classes
                 // Combine all tables from all ContractorOrder objects for this table number
                 var allTables = orders.SelectMany(o => o.Tables ?? new List<ContractorOrderTable>()).Where(t => t != null).ToList();
 
-                // Map ContractorOrderTable to OrderItem for display, including busy tables
                 var orderItems = allTables.Select((item, index) => new OrderItem
                 {
                     Id = item.Id,
                     ProductShortName = item.ProductShortName ?? "No Name",
                     ContractorRequirement = item.ContractorRequirement ?? "No Details",
-                    Quantity = (int)(item.Quantity > 0 ? item.Quantity : 1), // Default to 1 if zero or negative
-                    EstimatedPrice = Math.Round(item.EstimatedPrice > 0 ? item.EstimatedPrice : 0, 1), // Round to 1 decimal place
-                    Amount = Math.Round(item.Amount > 0 ? item.Amount : (item.EstimatedPrice * (item.Quantity > 0 ? item.Quantity : 1)), 1), // Round to 1 decimal place
-                    TableNumber = tableNumber // Infer TableNumber from context
-                }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList(); // Only filter out items with no name
+                    Quantity = (int)item.Quantity, 
+                    EstimatedPrice = item.EstimatedPrice,
+                    Amount = item.Amount, 
+                    TableNumber = tableNumber 
+                }).Where(item => !string.IsNullOrEmpty(item.ProductShortName)).ToList();
 
                 if (orderItems.Any())
                 {
@@ -316,37 +315,37 @@ namespace Restaurants.Classes
                     {
                         lvItems.Items.Add(item); // Add OrderItem to ListView
                     }
-                    CalculateTotals(orderItems);
+
+                    foreach (var item in orders)
+                    {
+
+                        lblAmountValue.Text = item.Amount.ToString();
+                        lblAdditinalPaymentValue.Text = item.AdditinalPayment.ToString();
+                        lblTotalAmountValue.Text = item.TotalAmount.ToString() ;
+                    }
+
+                    
                 }
                 else
                 {
                     Console.WriteLine($"No valid orders found for table {tableNumber}");
-                    lblAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
-                    lblAdditinalPaymentValue.Text = "0.0 so'm"; // Updated to one decimal place
-                    lblTotalAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
+                    lblAmountValue.Text = "0.0 UZS"; // Updated to one decimal place
+                    lblAdditinalPaymentValue.Text = "0.0 UZS"; // Updated to one decimal place
+                    lblTotalAmountValue.Text = "0.0 UZS"; // Updated to one decimal place
                 }
             }
             else
             {
                 Console.WriteLine($"No orders in tableOrders for table {tableNumber}");
-                lblAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
-                lblAdditinalPaymentValue.Text = "0.0 so'm"; // Updated to one decimal place
-                lblTotalAmountValue.Text = "0.0 so'm"; // Updated to one decimal place
+                lblAmountValue.Text = "0.0 UZS"; // Updated to one decimal place
+                lblAdditinalPaymentValue.Text = "0.0 UZS"; // Updated to one decimal place
+                lblTotalAmountValue.Text = "0.0 UZS"; // Updated to one decimal place
             }
-        }
-
-        private void CalculateTotals(List<OrderItem> items)
-        {
-            decimal total = Math.Round(items.Sum(item => item.Amount), 1); // Round to 1 decimal place
-            decimal serviceFee = Math.Round(total * 0.1m, 1); // Round to 1 decimal place
-            lblAmountValue.Text = FormatCurrency(total);
-            lblAdditinalPaymentValue.Text = FormatCurrency(serviceFee);
-            lblTotalAmountValue.Text = FormatCurrency(total + serviceFee);
         }
 
         private string FormatCurrency(decimal value)
         {
-            return $"{Math.Round(value, 1):0.0} so'm"; // Format to one decimal place with explicit rounding
+            return $"{Math.Round(value, 1):0.0} UZS"; // Format to one decimal place with explicit rounding
         }
 
         private void Timer_Tick(object sender, EventArgs e)
@@ -649,7 +648,7 @@ namespace Restaurants.Classes
         {
             // Extract numeric value from formatted currency text
             if (string.IsNullOrEmpty(text)) return 0;
-            string numericText = text.Replace("so'm", "").Replace(" ", "").Replace(",", "").Trim();
+            string numericText = text.Replace("UZS", "").Replace(" ", "").Replace(",", "").Trim();
             if (decimal.TryParse(numericText, out decimal result))
             {
                 return Math.Round(result/10, 1); // Round to 1 decimal place

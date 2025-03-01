@@ -8,6 +8,7 @@ public class OrderItem
     public int Quantity { get; set; }
     public decimal EstimatedPrice { get; set; }
     public decimal Amount { get; set; }
+    public decimal TotalAmount { get; set; }
     public int TableNumber { get; set; } // To associate with a table (since ContractorOrderTable lacks TableNumber)
     public int Index { get; internal set; }
 }
