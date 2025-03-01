@@ -83,37 +83,87 @@ public class XPrinter
         }
     }
 
-    private string BuildPrintText(PrintOrder order)
+    private static string BuildPrintText(PrintOrder order)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Zakaz N#: {order.CheckNumber}");
-        sb.AppendLine($"Restoran: {order.RestaurantName}");
-        sb.AppendLine($"Ofitsiant: {order.WaiterName}");
-        sb.AppendLine($"Sana: {order.OrderDate}   Vaqt: {order.OrderTime}");
-        sb.AppendLine($"Stol: {order.TableNumber}");
-        sb.AppendLine(new string('-', 40));
 
-        sb.AppendLine($"Mahsulot    |    Soni    |    Summa");
-        sb.AppendLine(new string('-', 40));
+        // Shrfitni standart holatga qaytarish
+        sb.AppendLine("\x1B\x21\x00");
 
-        foreach (var item in order.Orders)
+        // Header Section - Katta shrift
+        sb.AppendLine("\x1B\x61\x01"); // Center align
+        sb.AppendLine("\x1D\x21\x11"); // 2x kenglik va 2x balandlik
+        sb.AppendLine($"{order.RestaurantName}");
+        sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
+
+        // Order Details - Left aligned
+        sb.AppendLine("\x1B\x61\x00"); // Left align
+        sb.AppendLine($"Zakaz N#:{order.CheckNumber}");
+        sb.AppendLine($"Ofitsiant:{order.WaiterName}");
+        sb.AppendLine($"Sana:{DateTime.Parse(order.OrderDate).ToString("dd.MM.yyyy")} Vaqt:{DateTime.Parse(order.OrderTime).ToString("HH:mm")}");
+        sb.AppendLine($"Stol:{order.TableNumber}");
+        sb.AppendLine();
+        sb.AppendLine(new string('=', 48)); // 48 ta "="
+
+        // Order items
+        for (int i = 0; i < order.Orders.Count; i++)
         {
-            // Format Amount to one decimal place
-            string amountFormatted = Math.Round(item.Amount, 1).ToString("0.0").PadLeft(8);
-            sb.AppendLine($"{item.ProductShortName.PadRight(12)} | {item.Quantity.ToString().PadLeft(8)} | {amountFormatted} UZS");
+            var item = order.Orders[i];
+            string productName = FormatProductName(item.ProductShortName, 20);
+            string calc = $"{item.Quantity} * {FormatAmount(item.EstimatedPrice)} = {FormatAmount(item.Amount)}";
+            int padding = 48 - productName.Length - calc.Length;
+            if (padding < 0) padding = 0;
+            sb.AppendLine($"{productName}{new string(' ', padding)}{calc}");
+
+            if (i < order.Orders.Count - 1)
+                sb.AppendLine(new string('-', 48)); // 48 ta "-"
         }
 
-        sb.AppendLine(new string('-', 40));
-        // Format totals to one decimal place
-        string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0.0").PadLeft(26);
-        string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0.0").PadLeft(20);
-        string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0.0").PadLeft(27);
-        sb.AppendLine($"Summa: {totalFormatted} UZS");
-        sb.AppendLine($"Xizmat haqi: {serviceFeeFormatted} UZS");
-        sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Jami: {grandTotalFormatted} UZS");
+        sb.AppendLine(new string('=', 48)); // 48 ta "="
+        sb.AppendLine();
+
+        // Totals - Katta shrift va bo'shliqsiz
+        sb.AppendLine("\x1D\x21\x10"); // 2x kenglik
+        string totalLabel = "Summa:";
+        string totalValue = $"{FormatAmount(order.TotalAmount)} UZS";
+        int totalDots = 48 - totalLabel.Length - totalValue.Length;
+        sb.AppendLine($"{totalLabel}{new string('.', totalDots)}{totalValue}");
+
+        string serviceLabel = "Xizmat haqi:";
+        string serviceValue = $"{FormatAmount(order.ServiceFee)} UZS";
+        int serviceDots = 48 - serviceLabel.Length - serviceValue.Length;
+        sb.AppendLine($"{serviceLabel}{new string('.', serviceDots)}{serviceValue}");
+
+        sb.AppendLine(new string('=', 48)); // 48 ta "="
+
+        string grandLabel = "Jami:";
+        string grandValue = $"{FormatAmount(order.GrandTotal)} UZS";
+        int grandDots = 48 - grandLabel.Length - grandValue.Length;
+        sb.AppendLine($"{grandLabel}{new string('.', grandDots)}{grandValue}");
+        sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
+
+        // Footer - Centered
+        sb.AppendLine("\x1B\x61\x01"); // Center align
+        sb.AppendLine("\nXaridingiz uchun rahmat!\n");
+
+        // Add cut command
+        sb.AppendLine("\x1D\x56\x01"); // Paper cut
 
         return sb.ToString();
+    }
+
+    private static string FormatProductName(string name, int maxLength)
+    {
+        if (string.IsNullOrEmpty(name))
+            return "".PadRight(maxLength);
+        if (name.Length <= maxLength)
+            return name.PadRight(maxLength);
+        return name.Substring(0, maxLength - 3) + "...";
+    }
+
+    private static string FormatAmount(decimal amount)
+    {
+        return amount.ToString("#,##0.00");
     }
 
 }
