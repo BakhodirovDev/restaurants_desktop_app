@@ -81,7 +81,7 @@ public class XPrinter
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Print komandasini yuborishda xato: " + ex.Message, "Print Xato", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("Kassa komandasini yuborishda xato: " + ex.Message, "Kassa Xato", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

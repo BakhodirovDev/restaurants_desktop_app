@@ -47,8 +47,6 @@ namespace Restaurants
             //InitializePrinter();
             AutoLogin();
         }
-
-
         public int openPort()
         {
             try
@@ -95,12 +93,6 @@ namespace Restaurants
                     string jsonResponse = await response.Content.ReadAsStringAsync();
                     var loginResponse = JsonSerializer.Deserialize<LoginResponse>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                    if (loginResponse?.AccessToken == null)
-                    {
-                        MessageBox.Show("Login response invalid.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
-                    }
-
                     // Save tokens
                     Settings.Default.AccessToken = loginResponse.AccessToken;
                     Settings.Default.RefreshToken = loginResponse.RefreshToken;
@@ -111,10 +103,25 @@ namespace Restaurants
                     // Update HttpClient with the new token
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
 
-                    Print print = new Print(_httpClient, _xPrinter);
-                    print.Show();
-                    Close();
-                }
+                    if (loginResponse.UserInfo.Roles[0] == "710 BK admin" || loginResponse.UserInfo.Roles[0] == "Касса")
+                    {
+                        Kassa print = new Kassa(_httpClient, _xPrinter);
+                        print.Show();
+                        Close();
+                    }
+                    else if (loginResponse.UserInfo.Roles[0] == "Oshpaz")
+                    {
+                        MessageBox.Show("Ushbu dasturga kirish uchun sizda ruxsat yo'q.", "Permission Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                    }
+                    else
+                    {
+                        MessageBox.Show("Ushbu dasturga kirish uchun sizda ruxsat yo'q.", "Permission Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        Settings.Default.Reset();
+                    }
+
+
+                    }
                 else
                 {
                     MessageBox.Show($"Login failed: {response.ReasonPhrase}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -211,7 +218,7 @@ namespace Restaurants
                 if (IsTokenValid(expireAt))
                 {
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", savedToken);
-                    Print print = new Print(_httpClient, _xPrinter);
+                    Kassa print = new Kassa(_httpClient, _xPrinter);
                     print.Show();
                     Close();
                 }

@@ -1,4 +1,5 @@
-﻿using System.Windows.Documents;
+﻿using Newtonsoft.Json;
+using System.Windows.Documents;
 
 namespace Restaurants.Class.ContractorOrder_Get;
 
@@ -9,7 +10,7 @@ public class ContractorOrderTable
     public string Responsible { get; set; }
     public int? PositionId { get; set; }
     public string Position { get; set; }
-    public int ManufacturingReportId { get; set; }
+    public int? ManufacturingReportId { get; set; }
     public bool IsNotCreateManufacturingReport { get; set; }
     public bool CanEdit { get; set; }
     public bool CanDelete { get; set; }

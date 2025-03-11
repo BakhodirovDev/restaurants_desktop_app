@@ -34,4 +34,6 @@ public class TablesInfo
     public bool IsEmployee { get; set; }
     public bool HasNotCompletedOrder { get; set; }
     public int? NotCompletedOrderId { get; set; }
+    public int ProductsCount { get; set; }
+    public int CompletedProductsCount { get; set; }
 }

@@ -1,4 +1,4 @@
-﻿<Window x:Class="Restaurants.Classes.Print"
+﻿<Window x:Class="Restaurants.Classes.Kassa"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Boxoro kafe" 
@@ -33,7 +33,6 @@
         </Style>
         <Style x:Key="TableButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="120"/>
-            <!-- Increased width to accommodate text -->
             <Setter Property="Height" Value="100"/>
             <Setter Property="Margin" Value="10"/>
             <Setter Property="Foreground" Value="White"/>
@@ -264,19 +263,12 @@
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="50"/>
-                                            <!-- № -->
                                             <ColumnDefinition Width="70"/>
-                                            <!-- ID -->
                                             <ColumnDefinition Width="180"/>
-                                            <!-- Nomi -->
                                             <ColumnDefinition Width="*"/>
-                                            <!-- Tafsilotlar -->
                                             <ColumnDefinition Width="100"/>
-                                            <!-- Soni -->
                                             <ColumnDefinition Width="120"/>
-                                            <!-- Narxi -->
                                             <ColumnDefinition Width="150"/>
-                                            <!-- Jami summa -->
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Grid.Column="0" Text="№" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Center"/>
@@ -312,22 +304,14 @@
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="50"/>
-                                                                <!-- № -->
                                                                 <ColumnDefinition Width="70"/>
-                                                                <!-- ID -->
                                                                 <ColumnDefinition Width="180"/>
-                                                                <!-- Nomi -->
                                                                 <ColumnDefinition Width="*"/>
-                                                                <!-- Tafsilotlar -->
                                                                 <ColumnDefinition Width="100"/>
-                                                                <!-- Soni -->
                                                                 <ColumnDefinition Width="120"/>
-                                                                <!-- Narxi -->
                                                                 <ColumnDefinition Width="150"/>
-                                                                <!-- Jami summa -->
                                                             </Grid.ColumnDefinitions>
 
-                                                            <!-- Data Row Content with Padding Inside Each Cell -->
                                                             <Border Grid.Column="0" Padding="10">
                                                                 <TextBlock Text="{Binding Index}" Foreground="#212529" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                                             </Border>
@@ -342,7 +326,6 @@
                                                             </Border>
 
                                                             <Border Grid.Column="3" Padding="10">
-                                                                <!-- Details with TextWrapping enabled for multi-line support -->
                                                                 <TextBlock Text="{Binding ContractorRequirement}" Foreground="#757575" FontSize="13" 
                                                                            VerticalAlignment="Center" TextWrapping="Wrap" ToolTip="{Binding ContractorRequirement}"/>
                                                             </Border>
@@ -417,6 +400,8 @@
                             </Grid>
                             <Button x:Name="btnPrint" Content="Chek chiqarish" Height="44" Click="btnPrint_Click" 
                                     Background="#2196F3" Style="{StaticResource ActionButtonStyle}"/>
+                            <Button x:Name="btnCompleteOrder" Content="Buyurtmani tugatish" Height="44" Click="btnCompleteOrder_Click" 
+                                    Background="#FF9800" Style="{StaticResource ActionButtonStyle}" Margin="0,10,0,0"/>
                         </StackPanel>
                     </Border>
                 </Grid>
