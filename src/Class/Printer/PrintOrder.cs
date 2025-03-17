@@ -2,7 +2,7 @@
 {
     public class PrintOrder
     {
-        public int TableNumber { get; set; }
+        public string TableNumber { get; set; }
         public string RestaurantName { get; set; }
         public string WaiterName { get; set; }
         public string OrderDate { get; set; }

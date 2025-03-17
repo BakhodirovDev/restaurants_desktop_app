@@ -31,6 +31,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Oddiy holat uchun Style (Default) -->
         <Style x:Key="TableButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="120"/>
             <Setter Property="Height" Value="100"/>
@@ -61,6 +62,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Zakaz bor, lekin tanlanmagan stol uchun Style -->
         <Style x:Key="BusyTableButtonStyle" TargetType="Button" BasedOn="{StaticResource TableButtonStyle}">
             <Setter Property="Template">
                 <Setter.Value>
@@ -84,6 +86,59 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Bo'sh stol tanlanganda Style -->
+        <Style x:Key="SelectedEmptyTableButtonStyle" TargetType="Button" BasedOn="{StaticResource TableButtonStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="#0F9D58" CornerRadius="8" Effect="{StaticResource CardShadow}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Stol" FontSize="12" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontSize="12" Foreground="White" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#0D8047"/>
+                                <!-- Bir oz quyuqroq yashil -->
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#0B6B3A"/>
+                                <!-- Yanada quyuq -->
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- Zakaz bo'lgan stol tanlanganda Style -->
+        <Style x:Key="SelectedBusyTableButtonStyle" TargetType="Button" BasedOn="{StaticResource TableButtonStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="#F4B400" CornerRadius="8" Effect="{StaticResource CardShadow}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Stol (Band)" FontSize="12" Foreground="Black" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="16" FontWeight="Bold" Foreground="Black" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontSize="12" Foreground="Black" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E0A300"/>
+                                <!-- Bir oz quyuqroq sariq -->
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#CC9200"/>
+                                <!-- Yanada quyuq -->
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- Eski SelectedTableButtonStyle o'chiriladi yoki saqlanadi (agar kerak bo'lsa) -->
         <Style x:Key="SelectedTableButtonStyle" TargetType="Button" BasedOn="{StaticResource TableButtonStyle}">
             <Setter Property="Template">
                 <Setter.Value>
@@ -240,8 +295,12 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="Stollar" Style="{StaticResource HeaderTextStyle}" FontSize="16" Margin="0,0,0,10"/>
-                    <ScrollViewer x:Name="tableScrollViewer" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ScrollChanged="tableScrollViewer_ScrollChanged">
-                        <WrapPanel x:Name="tablesPanel" Orientation="Horizontal"/>
+                    <ScrollViewer x:Name="tableScrollViewer" Grid.Row="1" 
+                                  HorizontalScrollBarVisibility="Disabled" 
+                                  VerticalScrollBarVisibility="Auto" 
+                                  ScrollChanged="tableScrollViewer_ScrollChanged">
+                        <WrapPanel x:Name="tablesPanel" Orientation="Horizontal" 
+                                   Width="{Binding ActualWidth, ElementName=tableScrollViewer}"/>
                     </ScrollViewer>
                 </Grid>
 

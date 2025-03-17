@@ -1,5 +1,6 @@
 ﻿using Restaurants.Class;
 using Restaurants.Classes;
+using Restaurants.Pages;
 using Restaurants.Printer;
 using System.Net.Http;
 using System.Runtime.InteropServices;
@@ -25,13 +26,13 @@ namespace Restaurants
         [DllImport("printer.sdk.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         public static extern int ClosePort(IntPtr intPtr);
 
-
         [DllImport("printer.sdk.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern int CutPaperWithDistance(IntPtr intPtr, int distance);
 
 
         private IntPtr printer;
         private int openStatus = -100;
+
         public MainWindow()
         {
             _xPrinter = new XPrinter();
@@ -45,8 +46,9 @@ namespace Restaurants
             //this.printer = MainWindow.InitPrinter("");
             InitializeComponent();
             //InitializePrinter();
-            AutoLogin();
+            //AutoLogin();
         }
+
         public int openPort()
         {
             try
@@ -63,7 +65,6 @@ namespace Restaurants
             }
         }
 
-        
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             string username = UsernameTextBox.Text.Trim();
@@ -111,7 +112,13 @@ namespace Restaurants
                     }
                     else if (loginResponse.UserInfo.Roles[0] == "Oshpaz")
                     {
-                        MessageBox.Show("Ushbu dasturga kirish uchun sizda ruxsat yo'q.", "Permission Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                       /* PrinterService printerService = new PrinterService(_httpClient, _xPrinter);
+                        printerService.Show();
+                        Close();*/
+
+                        /*Chef chef = new Chef(_httpClient, _xPrinter);
+                        chef.Show();
+                        Close();*/
 
                     }
                     else

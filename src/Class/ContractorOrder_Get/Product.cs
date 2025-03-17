@@ -3,51 +3,52 @@
 public class Product
 {
     public string State { get; set; }
-    public string Color { get; set; }
-    public string Gradient { get; set; }
-    public string Width { get; set; }
-    public string Height { get; set; }
+    public string? Color { get; set; }
+    public string? Gradient { get; set; }
+    public decimal? Width { get; set; }
+    public decimal? Height { get; set; }
     public string UnitOfMeasure { get; set; }
-    public string SecondUnitOfMeasure { get; set; }
-    public string SerialNumber { get; set; }
-    public List<FileItem> Files { get; set; }
-    public List<object> Analogs { get; set; }
-    public List<object> Properties { get; set; }
-    public List<object> Operations { get; set; }
-    public List<object> Services { get; set; }
+    public string? SecondUnitOfMeasure { get; set; }
+    public string? SerialNumber { get; set; }
+    public List<object> Analogs { get; set; } = new();
+    public List<object> Properties { get; set; } = new();
+    public List<object> Files { get; set; } = new();
+    public List<object> Operations { get; set; } = new();
     public int Id { get; set; }
     public int StateId { get; set; }
     public string Code { get; set; }
-    public string SubCode { get; set; }
+    public string? SubCode { get; set; } = null;
     public string BarCode { get; set; }
     public string ShortName { get; set; }
     public string FullName { get; set; }
     public int UnitOfMeasureId { get; set; }
+    public int? SecondUnitOfMeasureId { get; set; } = null;
     public decimal EstimatedPrice { get; set; }
-    public decimal? ItemLength { get; set; }
-    public decimal? ItemWidth { get; set; }
-    public decimal? ItemHeight { get; set; }
-    public decimal? ItemWeight { get; set; }
+    public decimal? ItemLength { get; set; } = null;
+    public decimal? ItemWidth { get; set; } = null;
+    public decimal? ItemHeight { get; set; } = null;
+    public decimal? ItemWeight { get; set; } = null;
     public int ProductTypeId { get; set; }
     public int ProductGroupId { get; set; }
-    public int? TypeOfPackagingId { get; set; }
-    public int? PackageCount { get; set; }
-    public decimal? PackageWeight { get; set; }
-    public decimal? PackageLength { get; set; }
-    public decimal? PackageHeight { get; set; }
-    public decimal? PackageWidth { get; set; }
-    public decimal? PackageVolume { get; set; }
+    public int? TypeOfPackagingId { get; set; } = null;
+    public int? PackageCount { get; set; } = null;
+    public decimal? PackageWeight { get; set; } = null;
+    public decimal? PackageLength { get; set; } = null;
+    public decimal? PackageHeight { get; set; } = null;
+    public decimal? PackageWidth { get; set; } = null;
+    public decimal? PackageVolume { get; set; } = null;
     public bool IsNotCreateManufacturingReport { get; set; }
-    public int? SupplyId { get; set; }
-    public string SellerName { get; set; }
-    public string SellerAddress { get; set; }
-    public string SellerInn { get; set; }
-    public int? ColorId { get; set; }
-    public int? GradientId { get; set; }
-    public int? WidthId { get; set; }
-    public int? HeightId { get; set; }
+    public int? SupplyId { get; set; } = null;
+    public string? SellerName { get; set; } = null;
+    public string? SellerAddress { get; set; } = null;
+    public string? SellerInn { get; set; } = null;
+    public int? ColorId { get; set; } = null;
+    public int? GradientId { get; set; } = null;
+    public int? WidthId { get; set; } = null;
+    public int? HeightId { get; set; } = null;
     public bool HasExpireDate { get; set; }
     public bool HasSeria { get; set; }
     public bool HasExParametr { get; set; }
-    public string ImageId { get; set; }
+    public int? ImageId { get; set; } = null;
+    public List<object> Services { get; set; } = new();
 }

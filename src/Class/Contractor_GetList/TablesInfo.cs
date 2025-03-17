@@ -29,8 +29,8 @@ public class TablesInfo
     public string Region { get; set; }
     public string District { get; set; }
     public string ContractorType { get; set; }
-    public bool IsClient { get; set; }
-    public bool IsSupplier { get; set; }
+    public bool? IsClient { get; set; } = null;
+    public bool IsSupplier { get; set; } = false;
     public bool IsEmployee { get; set; }
     public bool HasNotCompletedOrder { get; set; }
     public int? NotCompletedOrderId { get; set; }
