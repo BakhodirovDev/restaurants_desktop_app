@@ -84,7 +84,7 @@ namespace Restaurants.Classes
                 orderBy = "asc",
                 sortBy = "id",
                 isSupplier = false,
-                pageSize = 20,
+                pageSize = 100,
                 page = 1
             };
 
@@ -641,7 +641,8 @@ namespace Restaurants.Classes
                     .ToList() ?? new List<OrderItem>(),
                 TotalAmount = Math.Round(order.Amount, 1),
                 ServiceFee = Math.Round(order.AdditinalPayment, 1),
-                GrandTotal = Math.Round(order.TotalAmount, 1)
+                GrandTotal = Math.Round(order.TotalAmount, 1),
+                AdditionalPercentage = order.AdditionalPayments.Count > 0 ? order.AdditionalPayments[0].AdditionalPercentage : 0
             };
         }
 
@@ -936,6 +937,35 @@ namespace Restaurants.Classes
                 return default;
             }
         }
+
+        private void btnCashPayment_Click(object sender, RoutedEventArgs e)
+        {
+            // Logic for cash payment
+            // You could set a payment method flag or variable here
+            ///PaymentMethod = "Cash";
+
+            // You might want to visually indicate which payment method was selected
+            btnCashPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#388E3C"));
+            btnCardPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#673AB7"));
+
+            // Then proceed with the print operation if needed
+            // PrintCashReceipt();
+        }
+
+        private void btnCardPayment_Click(object sender, RoutedEventArgs e)
+        {
+            // Logic for card payment
+            // You could set a payment method flag or variable here
+            ///PaymentMethod = "Card";
+
+            // You might want to visually indicate which payment method was selected
+            btnCardPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#512DA8"));
+            btnCashPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
+
+            // Then proceed with the print operation if needed
+            // PrintCardReceipt();
+        }
+
     }
 
     public class TableButtonData

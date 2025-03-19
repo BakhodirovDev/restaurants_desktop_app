@@ -431,6 +431,7 @@
                         </Grid>
                     </Border>
                     <Border Grid.Column="1" Background="#F8F9FA" CornerRadius="8" Padding="20" BorderThickness="1" BorderBrush="#EEEEEE">
+                        <!-- This replaces the original single button: -->
                         <StackPanel>
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
@@ -457,10 +458,24 @@
                                 <TextBlock Text="UMUMIY:" FontSize="16" FontWeight="Bold" Foreground="#333333"/>
                                 <TextBlock x:Name="lblTotalAmountValue" Grid.Column="1" FontSize="16" FontWeight="Bold" Foreground="#4CAF50" Text="0 so'm"/>
                             </Grid>
+
+                            <!-- New payment method buttons -->
+                            <TextBlock Text="To'lov usulini tanlang:" FontSize="14" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,8"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="btnCashPayment" Content="Naqt pul" Height="44" Click="btnCashPayment_Click" 
+                Background="#4CAF50" Style="{StaticResource ActionButtonStyle}" Margin="0,0,5,0"/>
+                                <Button x:Name="btnCardPayment" Content="Plastik karta" Height="44" Click="btnCardPayment_Click" 
+                Background="#673AB7" Style="{StaticResource ActionButtonStyle}" Grid.Column="1" Margin="5,0,0,0"/>
+                            </Grid>
+
                             <Button x:Name="btnPrint" Content="Chek chiqarish" Height="44" Click="btnPrint_Click" 
-                                    Background="#2196F3" Style="{StaticResource ActionButtonStyle}"/>
+            Background="#2196F3" Style="{StaticResource ActionButtonStyle}"/>
                             <Button x:Name="btnCompleteOrder" Content="Buyurtmani tugatish" Height="44" Click="btnCompleteOrder_Click" 
-                                    Background="#FF9800" Style="{StaticResource ActionButtonStyle}" Margin="0,10,0,0"/>
+            Background="#FF9800" Style="{StaticResource ActionButtonStyle}" Margin="0,10,0,0"/>
                         </StackPanel>
                     </Border>
                 </Grid>

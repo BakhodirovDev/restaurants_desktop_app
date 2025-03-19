@@ -112,9 +112,9 @@ namespace Restaurants
                     }
                     else if (loginResponse.UserInfo.Roles[0] == "Oshpaz")
                     {
-                       /* PrinterService printerService = new PrinterService(_httpClient, _xPrinter);
+                        PrinterService printerService = new PrinterService(_httpClient, _xPrinter);
                         printerService.Show();
-                        Close();*/
+                        Close();
 
                         /*Chef chef = new Chef(_httpClient, _xPrinter);
                         chef.Show();

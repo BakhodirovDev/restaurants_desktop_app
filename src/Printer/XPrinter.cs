@@ -165,7 +165,7 @@ public class XPrinter
         int totalDots = 48 - totalLabel.Length - totalValue.Length;
         sb.AppendLine($"{totalLabel}{new string('.', totalDots)}{totalValue}");
 
-        string serviceLabel = "Xizmat haqi (12%):";
+        string serviceLabel = $"Xizmat haqi ({order.AdditionalPercentage}%):";
         string serviceValue = $"{FormatAmount(order.ServiceFee)} UZS";
         int serviceDots = 48 - serviceLabel.Length - serviceValue.Length;
         sb.AppendLine($"{serviceLabel}{new string('.', serviceDots)}{serviceValue}");

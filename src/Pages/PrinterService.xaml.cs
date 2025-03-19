@@ -1,6 +1,10 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
+using Restaurants.Class.Printer;
 using Restaurants.Printer;
+using System;
 using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace Restaurants.Pages
@@ -20,14 +24,20 @@ namespace Restaurants.Pages
             ConnectToSignalR();
         }
 
-
         private async void ConnectToSignalR()
         {
+            string accessToken = Settings.Default.AccessToken;
+            string userId = Settings.Default.UserId.ToString();
+            string organizationId = Settings.Default.OrganizationId.ToString();
+
             _connection = new HubConnectionBuilder()
-                .WithUrl("wss://localhost:5000/notificationHub", options =>
+                .WithUrl($"ws://crm-api.webase.uz/ws/restarunt", options =>
                 {
-                    options.AccessTokenProvider = () => Task.FromResult(Settings.Default.AccessToken);
+                    options.AccessTokenProvider = async () => await Task.FromResult(accessToken);
                     options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+
+                    options.Headers["UserId"] = userId;
+                    options.Headers["OrganizationId"] = organizationId;
                 })
                 .WithAutomaticReconnect()
                 .Build();
@@ -37,7 +47,30 @@ namespace Restaurants.Pages
                 MessageBox.Show($"Yangi xabar: {message}");
             });
 
+            _connection.On<object>("OrderData", message =>
+            {
+/*
+                var data = JsonSerializer.Deserialize<>(message);
+
+
+                PrintOrder order = message.ToObject<PrintOrder>();
+                _printer.PrintOrder(order);*/
+            });
+
+            _connection.On("Ping", async () =>
+            {
+                await SendPong();
+            });
+
             await StartConnection();
+        }
+
+        private async Task SendPong()
+        {
+            if (_connection.State == HubConnectionState.Connected)
+            {
+                await _connection.SendAsync("Pong");
+            }
         }
 
         private async Task StartConnection()
@@ -52,7 +85,5 @@ namespace Restaurants.Pages
                 MessageBox.Show($"SignalR ulanish xatosi: {ex.Message}");
             }
         }
-
-
     }
 }

@@ -12,5 +12,7 @@
         public decimal TotalAmount { get; set; }
         public decimal ServiceFee { get; set; }
         public decimal GrandTotal { get; set; }
+        public int AdditionalPercentage { get; set; }
+
     }
 }

@@ -70,5 +70,27 @@ namespace Restaurants {
                 this["refreshTokenExpireAt"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        public int UserId {
+            get {
+                return ((int)(this["UserId"]));
+            }
+            set {
+                this["UserId"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        public int OrganizationId {
+            get {
+                return ((int)(this["OrganizationId"]));
+            }
+            set {
+                this["OrganizationId"] = value;
+            }
+        }
     }
 }
