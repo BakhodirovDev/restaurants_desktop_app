@@ -13,6 +13,7 @@
         public decimal ServiceFee { get; set; }
         public decimal GrandTotal { get; set; }
         public int AdditionalPercentage { get; set; }
+        public string PaymentTypeText { get; set; }
 
     }
 }

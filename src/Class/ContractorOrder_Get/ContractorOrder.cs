@@ -42,7 +42,7 @@ public class ContractorOrder
     public int? CallPriorityId { get; set; }
     public int CurrencyId { get; set; }
     public int OrganizationAreasOfActivityId { get; set; }
-    public int CtWarehouseId { get; set; }
+    public int? CtWarehouseId { get; set; }
     public int ContractorId { get; set; }
     public bool IsCreateManufacturingReport { get; set; }
     public string Details { get; set; }

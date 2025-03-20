@@ -5,16 +5,19 @@ using Restaurants.Class.Contractor_GetList;
 using Restaurants.Class.ContractorOrder_Get;
 using Restaurants.Class.Printer;
 using Restaurants.Helper;
+using Restaurants.Pages.Windows;
 using Restaurants.Printer;
 using System.Drawing.Printing;
 using System.Globalization;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using static Restaurants.Pages.Windows.PaymentTypes;
 
 namespace Restaurants.Classes
 {
@@ -32,6 +35,9 @@ namespace Restaurants.Classes
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             InitializeComponent();
+
+            btnPrint.IsEnabled = false;
+            btnChangePaymentMethod.IsEnabled = false;
 
             this.SizeChanged += Kassa_SizeChanged;
 
@@ -190,7 +196,6 @@ namespace Restaurants.Classes
                     }
                 };
 
-                // Yangilanishdan keyin rangni to'g'ri qo'llash uchun ApplyTableStyle ishlatiladi
                 ApplyTableStyle(tableButton, isBusy, tableName == currentSelectedTable);
                 tableButton.Click += TableButton_Click;
                 tablesPanel.Children.Add(tableButton);
@@ -224,7 +229,6 @@ namespace Restaurants.Classes
             int? notCompletedOrderId = buttonData.NotCompletedOrderId;
             string responsibleName = buttonData.ResponsibleName;
 
-            // Agar yangi tanlangan stol boshqa bo'lsa, avvalgi stolni reset qilamiz
             if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != tableNumber)
             {
                 ResetPreviousTableButtonStyle();
@@ -235,7 +239,7 @@ namespace Restaurants.Classes
             lblStolValue.Text = "#" + tableNumber;
 
             bool isBusy = tableOrders.TryGetValue(tableNumber, out var orders) && orders != null && orders.Any(o => o.StatusId != 3);
-            ApplyTableStyle(clickedButton, isBusy, true); // Yangi tanlangan stolga mos rang qo'llaniladi
+            ApplyTableStyle(clickedButton, isBusy, true);
 
             LoadTableOrders(tableNumber);
 
@@ -253,9 +257,9 @@ namespace Restaurants.Classes
 
                 bool btnIsBusy = tableOrders.TryGetValue(btnData.TableNumber, out var orders) &&
                                  orders != null &&
-                                 orders.Any(o => o.StatusId != 3); // Zakaz borligini tekshirish
+                                 orders.Any(o => o.StatusId != 3);
 
-                ApplyTableStyle(btn, btnIsBusy, false); // Tanlov olib tashlanadi, agar band bo'lsa qizil qiladi
+                ApplyTableStyle(btn, btnIsBusy, false);
                 break;
             }
         }
@@ -270,6 +274,19 @@ namespace Restaurants.Classes
             if (!tableOrders.TryGetValue(tableNumber, out var orders) || orders == null || !orders.Any())
             {
                 Console.WriteLine($"No orders found for table {tableNumber}");
+                lblPaymentMethod.Text = "Tanlanmagan";
+                lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+                PaymentMethodBorder.Background = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection
+            {
+                new GradientStop(System.Windows.Media.Color.FromRgb(255, 235, 238), 0),
+                new GradientStop(System.Windows.Media.Color.FromRgb(255, 205, 210), 1)
+            }
+                };
+                UpdateButtonStates(); // Tugmalar holatini yangilash
                 return;
             }
 
@@ -307,10 +324,42 @@ namespace Restaurants.Classes
                     lblAmountValue.Text = $"{order.Amount:F1} UZS";
                     lblAdditinalPaymentValue.Text = $"{order.AdditinalPayment:F1} UZS";
                     lblTotalAmountValue.Text = $"{order.TotalAmount:F1} UZS";
+                    // To'lov turini ContractorOrder dan olish
+                    if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
+                    {
+                        lblPaymentMethod.Text = order.EstimatedPaymentType;
+                        lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
+                        PaymentMethodBorder.Background = new LinearGradientBrush
+                        {
+                            StartPoint = new Point(0, 0),
+                            EndPoint = new Point(1, 1),
+                            GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(System.Windows.Media.Color.FromRgb(200, 230, 201), 0),
+                        new GradientStop(System.Windows.Media.Color.FromRgb(165, 214, 167), 1)
+                    }
+                        };
+                    }
+                    else
+                    {
+                        lblPaymentMethod.Text = "Tanlanmagan";
+                        lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+                        PaymentMethodBorder.Background = new LinearGradientBrush
+                        {
+                            StartPoint = new Point(0, 0),
+                            EndPoint = new Point(1, 1),
+                            GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(System.Windows.Media.Color.FromRgb(255, 235, 238), 0),
+                        new GradientStop(System.Windows.Media.Color.FromRgb(255, 205, 210), 1)
+                    }
+                        };
+                    }
                 }
             }
 
             lvItems.Items.Refresh();
+            UpdateButtonStates(); // Tugmalar holatini yangilash
         }
 
         private async Task GetData()
@@ -490,7 +539,7 @@ namespace Restaurants.Classes
                         if (btn.Tag is TableButtonData btnData && btnData.TableNumber == currentSelectedTable)
                         {
                             bool isBusy = tableOrders.TryGetValue(currentSelectedTable, out var orders) && orders != null && orders.Any(o => o.StatusId != 3);
-                            ApplyTableStyle(btn, isBusy, true); // Tanlangan stolning rangi saqlanadi
+                            ApplyTableStyle(btn, isBusy, true);
                             if (btnData.NotCompletedOrderId.HasValue)
                             {
                                 await GetDataForTable(btnData.NotCompletedOrderId.Value);
@@ -505,7 +554,7 @@ namespace Restaurants.Classes
             {
                 MessageBox.Show($"Ma'lumotlarni yangilashda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }   
+        }
 
         private void btnGetData_Click(object sender, RoutedEventArgs e)
         {
@@ -642,64 +691,9 @@ namespace Restaurants.Classes
                 TotalAmount = Math.Round(order.Amount, 1),
                 ServiceFee = Math.Round(order.AdditinalPayment, 1),
                 GrandTotal = Math.Round(order.TotalAmount, 1),
-                AdditionalPercentage = order.AdditionalPayments.Count > 0 ? order.AdditionalPayments[0].AdditionalPercentage : 0
+                AdditionalPercentage = order.AdditionalPayments.Count > 0 ? order.AdditionalPayments[0].AdditionalPercentage : 0,
+                PaymentTypeText = order.EstimatedPaymentType ?? "Naqd"
             };
-        }
-
-        private string BuildPrintText(PrintOrder order)
-        {
-            var sb = new StringBuilder();
-            sb.Append("\x1B\x40");
-
-            try
-            {
-                sb.Append("\x1B\x61\x01");
-                sb.Append("\x1B\x45\x01");
-                sb.AppendLine($"Zakaz N#: {order.CheckNumber}");
-                sb.AppendLine($"Restoran: {order.RestaurantName}");
-                sb.AppendLine($"Ofitsiant: {order.WaiterName}");
-                sb.AppendLine($"Sana: {order.OrderDate}   Vaqt: {order.OrderTime}");
-                sb.AppendLine($"Stol: {order.TableNumber}");
-
-                sb.Append("\x1B\x45\x00");
-                sb.AppendLine(new string('-', 48));
-
-                sb.Append("\x1B\x61\x00");
-                sb.AppendLine("Mahsulot                    |    Soni    |    Summa");
-                sb.AppendLine(new string('-', 48));
-
-                foreach (var item in order.Orders ?? new List<OrderItem>())
-                {
-                    string amountFormatted = Math.Round(item.Amount, 1).ToString("0.0").PadLeft(8);
-                    string productName = item.ProductShortName.Length > 24
-                        ? item.ProductShortName.Substring(0, 24)
-                        : item.ProductShortName.PadRight(24);
-
-                    sb.AppendLine($"{productName} | {item.Quantity.ToString().PadLeft(8)} | {amountFormatted} UZS");
-                }
-
-                sb.AppendLine(new string('-', 48));
-                sb.Append("\x1B\x61\x02");
-
-                string totalFormatted = Math.Round(order.TotalAmount, 1).ToString("0.0").PadLeft(8);
-                string serviceFeeFormatted = Math.Round(order.ServiceFee, 1).ToString("0.0").PadLeft(8);
-                string grandTotalFormatted = Math.Round(order.GrandTotal, 1).ToString("0.0").PadLeft(8);
-
-                sb.AppendLine($"Summa: {totalFormatted} UZS");
-                sb.AppendLine($"Xizmat haqi(12%): {serviceFeeFormatted} UZS");
-                sb.AppendLine(new string('-', 48));
-                sb.AppendLine($"Jami: {grandTotalFormatted} UZS");
-
-                sb.Append("\x1B\x61\x01");
-                sb.AppendLine("Tashrifingiz uchun rahmat!");
-                sb.Append("\x1D\x56\x00");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"BuildPrintText xatolik: {ex.Message}");
-            }
-
-            return sb.ToString();
         }
 
         private void btnLogout_Click(object sender, RoutedEventArgs e)
@@ -793,7 +787,7 @@ namespace Restaurants.Classes
                             btnData.IsBusy = false;
                             btnData.OrderCountText = "0/0";
                             btn.Tag = btnData;
-                            ApplyTableStyle(btn, false, true); // Bo'sh tanlangan stol sifatida yangilash
+                            ApplyTableStyle(btn, false, true);
                         }
 
                         MessageBox.Show("Buyurtma muvaffaqiyatli yakunlandi", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -922,7 +916,8 @@ namespace Restaurants.Classes
                 if (response.IsSuccessStatusCode)
                 {
                     string jsonResponse = await response.Content.ReadAsStringAsync();
-                    return JsonConvert.DeserializeObject<T>(jsonResponse);
+                    var data = JsonConvert.DeserializeObject<T>(jsonResponse);
+                    return data;
                 }
                 else
                 {
@@ -938,34 +933,118 @@ namespace Restaurants.Classes
             }
         }
 
-        private void btnCashPayment_Click(object sender, RoutedEventArgs e)
+        private void btnChangePaymentMethod_Click(object sender, RoutedEventArgs e)
         {
-            // Logic for cash payment
-            // You could set a payment method flag or variable here
-            ///PaymentMethod = "Cash";
-
-            // You might want to visually indicate which payment method was selected
-            btnCashPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#388E3C"));
-            btnCardPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#673AB7"));
-
-            // Then proceed with the print operation if needed
-            // PrintCashReceipt();
+            OpenPaymentMethodSelection();
         }
 
-        private void btnCardPayment_Click(object sender, RoutedEventArgs e)
+        private async void OpenPaymentMethodSelection()
         {
-            // Logic for card payment
-            // You could set a payment method flag or variable here
-            ///PaymentMethod = "Card";
+            var paymentTypesWindow = new PaymentTypes();
+            if (paymentTypesWindow.ShowDialog() == true)
+            {
+                var selectedMethod = paymentTypesWindow.SelectedPaymentMethod;
 
-            // You might want to visually indicate which payment method was selected
-            btnCardPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#512DA8"));
-            btnCashPayment.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
+                // Agar stol tanlanmagan bo'lsa, xabar chiqaramiz
+                if (string.IsNullOrEmpty(currentSelectedTable) || currentSelectedTable == "-1")
+                {
+                    MessageBox.Show("Iltimos, avval stol tanlang!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
 
-            // Then proceed with the print operation if needed
-            // PrintCardReceipt();
+                // Stolga tegishli buyurtma mavjudligini tekshiramiz
+                if (!tableOrders.TryGetValue(currentSelectedTable, out var orders) || orders == null || !orders.Any())
+                {
+                    MessageBox.Show("Tanlangan stolda buyurtma mavjud emas!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var order = orders.FirstOrDefault();
+                if (order == null)
+                {
+                    MessageBox.Show("Buyurtma ma'lumotlari topilmadi!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                try
+                {
+                    // To'lov turi tanlangan bo'lsa
+                    if (selectedMethod != null)
+                    {
+                        using (HttpClient client = new HttpClient())
+                        {
+                            string apiUrl = $"https://crm-api.webase.uz/crm/ContractorOrder/ChangePaymentType?orderId={order.Id}&paymentTypeId={selectedMethod.Value}";
+                            client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+                            client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/plain"));
+                            client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
+                            client.DefaultRequestHeaders.Add("accept-language", "ru-RU,ru;q=0.9,uz-UZ;q=0.8,uz;q=0.7,en-US;q=0.6,en;q=0.5");
+                            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Settings.Default.AccessToken);
+                            client.DefaultRequestHeaders.Add("origin", "https://crm.webase.uz");
+                            client.DefaultRequestHeaders.Add("priority", "u=1, i");
+                            client.DefaultRequestHeaders.Add("referer", "https://crm.webase.uz/");
+                            client.DefaultRequestHeaders.Add("sec-ch-ua", "\"Not(A:Brand\";v=\"99\", \"Google Chrome\";v=\"133\", \"Chromium\";v=\"133\"");
+                            client.DefaultRequestHeaders.Add("sec-ch-ua-mobile", "?0");
+                            client.DefaultRequestHeaders.Add("sec-ch-ua-platform", "\"Windows\"");
+                            client.DefaultRequestHeaders.Add("sec-fetch-dest", "empty");
+                            client.DefaultRequestHeaders.Add("sec-fetch-mode", "cors");
+                            client.DefaultRequestHeaders.Add("sec-fetch-site", "same-site");
+                            client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36");
+
+                            HttpResponseMessage response = await client.PostAsync(apiUrl,null);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                // Muvaffaqiyatli bo'lsa, ContractorOrder ni yangilash
+                                order.EstimatedPaymentType = selectedMethod.Text;
+                                lblPaymentMethod.Text = selectedMethod.Text; // Tanlangan to'lov turini ko'rsatish
+                                lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
+                                PaymentMethodBorder.Background = new LinearGradientBrush
+                                {
+                                    StartPoint = new Point(0, 0),
+                                    EndPoint = new Point(1, 1),
+                                    GradientStops = new GradientStopCollection
+                                    {
+                                        new GradientStop(System.Windows.Media.Color.FromRgb(200, 230, 201), 0),
+                                        new GradientStop(System.Windows.Media.Color.FromRgb(165, 214, 167), 1)
+                                    }
+                                };
+                            }
+                            else
+                            {
+                                MessageBox.Show("To'lov turini o'zgartirishda xatolik yuz berdi!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                                return;
+                            }
+                        }
+
+                    }
+                    
+                    UpdateButtonStates();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"To'lov turini o'zgartirishda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
+        private void UpdateButtonStates()
+        {
+            bool hasItems = lvItems.Items.Count > 0; // Stolda buyurtma borligini tekshirish
+            bool hasPaymentMethod = false;
+
+            if (hasItems && tableOrders.TryGetValue(currentSelectedTable, out var orders) && orders != null && orders.Any())
+            {
+                var order = orders.FirstOrDefault();
+                if (order != null)
+                {
+                    hasPaymentMethod = !string.IsNullOrEmpty(order.EstimatedPaymentType); // To'lov turi mavjudligini tekshirish
+                }
+            }
+
+            // Agar buyurtma bo'lmasa, tahrirlash va chek chiqarish tugmalari faolsiz bo'ladi
+            btnChangePaymentMethod.IsEnabled = hasItems;
+            btnPrint.IsEnabled = hasItems && hasPaymentMethod;
+        }
     }
 
     public class TableButtonData

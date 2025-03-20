@@ -119,24 +119,17 @@ public class XPrinter
     {
         var sb = new StringBuilder();
 
-        // Shrfitni standart holatga qaytarish
-        //sb.AppendLine("\x1B\x21\x00");
-
-        // Header Section - Katta shrift
-        //sb.AppendLine("\x1B\x61\x01"); // Center align
-        //sb.AppendLine("\x1D\x21\x11"); // 2x kenglik va 2x balandlik
-        sb.AppendLine($"");
-        sb.AppendLine($"710 BUXORO KAFE");
+        sb.AppendLine($"710 BUXORO KAFE\n");
         //sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
 
         // Order Details - Left aligned
         //sb.AppendLine("\x1B\x61\x00"); // Left align
-        sb.AppendLine($"Zakaz N#:{order.CheckNumber}");
-        sb.AppendLine($"Ofitsiant:{order.WaiterName}");
-        sb.AppendLine($"Sana:{DateTime.ParseExact(order.OrderDate, "dd.MM.yyyy", null).ToString("dd.MM.yyyy")} " +
-                      $"Vaqt:{DateTime.ParseExact(order.OrderTime, "HH:mm", null).ToString("HH:mm")}");
+        sb.AppendLine($"Zakaz N#: {order.CheckNumber}");
+        sb.AppendLine($"Ofitsiant: {order.WaiterName}");
+        sb.AppendLine($"Sana: {DateTime.ParseExact(order.OrderDate, "dd.MM.yyyy", null).ToString("dd.MM.yyyy")} " +
+                      $" Vaqt: {DateTime.ParseExact(order.OrderTime, "HH:mm", null).ToString("HH:mm")}");
 
-        sb.AppendLine($"Stol:{order.TableNumber}");
+        sb.AppendLine($"Stol: {order.TableNumber}");
         sb.AppendLine();
         sb.AppendLine(new string('=', 48)); // 48 ta "="
 
@@ -160,30 +153,31 @@ public class XPrinter
 
         // Totals - Katta shrift va bo'shliqsiz
         //sb.AppendLine("\x1D\x21\x10"); // 2x kenglik
-        string totalLabel = "Summa:";
+        string totalLabel = "Summa: ";
         string totalValue = $"{FormatAmount(order.TotalAmount)} UZS";
         int totalDots = 48 - totalLabel.Length - totalValue.Length;
         sb.AppendLine($"{totalLabel}{new string('.', totalDots)}{totalValue}");
 
-        string serviceLabel = $"Xizmat haqi ({order.AdditionalPercentage}%):";
+        string serviceLabel = $"Xizmat haqi ({order.AdditionalPercentage}%): ";
         string serviceValue = $"{FormatAmount(order.ServiceFee)} UZS";
         int serviceDots = 48 - serviceLabel.Length - serviceValue.Length;
         sb.AppendLine($"{serviceLabel}{new string('.', serviceDots)}{serviceValue}");
 
+        string paymentLabel = "To'lov turi: ";
+        string paymentValue = $"{order.PaymentTypeText}";
+        int paymentDots = 48 - paymentLabel.Length - paymentValue.Length;
+        sb.AppendLine($"{paymentLabel}{new string('.', paymentDots)}{paymentValue}");
+
         sb.AppendLine(new string('=', 48)); // 48 ta "="
 
-        string grandLabel = "Jami:";
+        string grandLabel = "Jami: ";
         string grandValue = $"{FormatAmount(order.GrandTotal)} UZS";
         int grandDots = 48 - grandLabel.Length - grandValue.Length;
         sb.AppendLine($"{grandLabel}{new string('.', grandDots)}{grandValue}");
         //sb.AppendLine("\x1D\x21\x00"); // Normal o'lcham
 
-        // Footer - Centered
-        //sb.AppendLine("\x1B\x61\x01"); // Center align
         sb.AppendLine("\nXaridingiz uchun rahmat!\n");
 
-        // Add cut command
-        //sb.AppendLine("\x1D\x56\x01"); // Paper cut
 
         return sb.ToString();
     }
