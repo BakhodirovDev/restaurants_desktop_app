@@ -104,22 +104,32 @@ namespace Restaurants
                     // Update HttpClient with the new token
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
 
-                    if (loginResponse.UserInfo.Roles[0] == "710 BK admin" || loginResponse.UserInfo.Roles[0] == "Касса")
+                    int permissionCount = 0;
+
+                    List<string> permissions = new List<string>()
+                    {
+                        "ContractorView",
+                        "ContractorOrderView",
+                        "ContractorOrderComplete"
+                    };
+
+                    foreach (var modul in loginResponse.UserInfo.Modules)
+                    {
+                        for (int i = 0; i < permissions.Count; i++)
+                        {
+                            if (modul == permissions[i])
+                            {
+                                permissionCount ++;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (permissions.Count == permissionCount)
                     {
                         Kassa print = new Kassa(_httpClient, _xPrinter);
                         print.Show();
                         Close();
-                    }
-                    else if (loginResponse.UserInfo.Roles[0] == "Oshpaz")
-                    {
-                        PrinterService printerService = new PrinterService(_httpClient, _xPrinter);
-                        printerService.Show();
-                        Close();
-
-                        /*Chef chef = new Chef(_httpClient, _xPrinter);
-                        chef.Show();
-                        Close();*/
-
                     }
                     else
                     {

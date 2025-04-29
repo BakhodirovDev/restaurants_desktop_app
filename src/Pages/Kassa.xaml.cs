@@ -63,17 +63,11 @@ namespace Restaurants.Classes
         {
             try
             {
-                if (tglAutoRefresh != null)
-                {
-                    tglAutoRefresh.IsChecked = false;
-                    StopAutoRefresh();
-                }
-
-                UpdateStatusLabels();
                 await LoadTablesAsync();
                 await GetData();
-
-                lblLastUpdate.Text = "Oxirgi yangilanish: " + DateTime.Now.ToString("HH:mm:ss");
+                
+                // Start auto-refresh timer
+                timer.Start();
             }
             catch (Exception ex)
             {
@@ -134,10 +128,6 @@ namespace Restaurants.Classes
                 if (data?.Rows != null)
                 {
                     GenerateTableButtons(data.Rows);
-                }
-                else
-                {
-                    MessageBox.Show("No table data returned from the API.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (HttpRequestException ex)
@@ -386,7 +376,6 @@ namespace Restaurants.Classes
                 lblChekRaqamiValue.Text = "#" + (data.DocNumber ?? "Null");
 
                 ProcessApiData(data);
-                lblLastUpdate.Text = "Oxirgi yangilanish: " + DateTime.Now.ToString("HH:mm:ss");
 
                 if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
                 {
@@ -515,121 +504,40 @@ namespace Restaurants.Classes
             LoadTableOrders(tableNumber);
         }
 
-        private async Task ReLoadData()
+        private async Task SmoothAutoRefresh()
         {
-            try
-            {
-                countdown = 3;
-                lblCountdown.Text = $"({countdown})";
-                lblLastUpdate.Text = "Yangilanmoqda...";
+            try {
+                // Yangi ma'lumotlarni ol, ammo mavjud ma'lumotlarni tozalamasdan
+                var data1 = await ContractorOrderGet();
+                if (data1 == null) return;
 
-                string previouslySelectedTable = currentSelectedTable;
-
-                tableOrders.Clear();
-                await GetData();
-                await LoadTablesAsync();
-
-                lblLastUpdate.Text = "Oxirgi yangilanish: " + DateTime.Now.ToString("HH:mm:ss");
-
-                if (!string.IsNullOrEmpty(previouslySelectedTable) && previouslySelectedTable != "-1")
+                // Yangilangan ma'lumotlarni qo'sh, ammo mavjudlarini o'chirmasdan
+                ProcessApiDataWithoutClearing(data1);
+                
+                // Tanlangan stol uchun ma'lumotlarni yangilab, UI ni tahrirla
+                if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
                 {
-                    currentSelectedTable = previouslySelectedTable;
-                    foreach (Button btn in tablesPanel.Children)
+                    var selectedButton = tablesPanel.Children.OfType<Button>()
+                        .FirstOrDefault(b => b.Tag is TableButtonData td && td.TableNumber == currentSelectedTable);
+                    
+                    if (selectedButton != null && selectedButton.Tag is TableButtonData btnData && btnData.NotCompletedOrderId.HasValue)
                     {
-                        if (btn.Tag is TableButtonData btnData && btnData.TableNumber == currentSelectedTable)
-                        {
-                            bool isBusy = tableOrders.TryGetValue(currentSelectedTable, out var orders) && orders != null && orders.Any(o => o.StatusId != 3);
-                            ApplyTableStyle(btn, isBusy, true);
-                            if (btnData.NotCompletedOrderId.HasValue)
-                            {
-                                await GetDataForTable(btnData.NotCompletedOrderId.Value);
-                            }
-                            LoadTableOrders(currentSelectedTable);
-                            break;
-                        }
+                        // Faqat yangi ma'lumotlarni pastdan qo'shib yangilash
+                        await UpdateExistingTableData(btnData.NotCompletedOrderId.Value);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ma'lumotlarni yangilashda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
 
-        private void btnGetData_Click(object sender, RoutedEventArgs e)
-        {
-            countdown = 3;
-            lblCountdown.Text = $"({countdown})";
-            _ = ReLoadData();
-        }
-
-        private void StartAutoRefresh()
-        {
-            if (timer != null)
-            {
-                countdown = 3;
-                lblCountdown.Text = $"({countdown})";
-                timer.Start();
+                // Stol ma'lumotlarini yangilash
+                await LoadTablesAsync();
             }
-            UpdateStatusLabels();
-        }
-
-        private void StopAutoRefresh()
-        {
-            if (timer != null)
-            {
-                timer.Stop();
+            catch (Exception ex) {
+                Console.WriteLine($"Silent auto refresh error: {ex.Message}");
             }
-            UpdateStatusLabels();
         }
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            countdown--;
-            lblCountdown.Text = $"({countdown})";
-
-            if (countdown <= 0)
-            {
-                countdown = 3;
-                _ = ReLoadData();
-            }
-        }
-
-        private void tglAutoRefresh_Checked(object sender, RoutedEventArgs e)
-        {
-            if (timer != null)
-            {
-                timer.Start();
-            }
-            UpdateStatusLabels();
-        }
-
-        private void tglAutoRefresh_Unchecked(object sender, RoutedEventArgs e)
-        {
-            if (timer != null)
-            {
-                timer.Stop();
-            }
-            UpdateStatusLabels();
-        }
-
-        private void UpdateStatusLabels()
-        {
-            if (tglAutoRefresh == null || lblStatus == null || lblCountdown == null)
-            {
-                return;
-            }
-
-            if (tglAutoRefresh.IsChecked == true)
-            {
-                lblStatus.Text = "Har 3 sekundda ma'lumotlar yangilanmoqda...";
-                lblStatus.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80));
-            }
-            else
-            {
-                lblStatus.Text = "Avtomatik yangilanish o'chirilgan";
-                lblStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 152, 0));
-            }
+            _ = SmoothAutoRefresh();
         }
 
         private void btnPrint_Click(object sender, RoutedEventArgs e)
@@ -844,9 +752,9 @@ namespace Restaurants.Classes
             }
 
             string refreshToken = Settings.Default.RefreshToken;
+
             if (string.IsNullOrEmpty(refreshToken))
             {
-                MessageBox.Show("Siz tizimdan chiqib ketgansiz. Iltimos, qayta kiring.", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
                 new MainWindow().Show();
                 Close();
                 return null;
@@ -1044,6 +952,144 @@ namespace Restaurants.Classes
             // Agar buyurtma bo'lmasa, tahrirlash va chek chiqarish tugmalari faolsiz bo'ladi
             btnChangePaymentMethod.IsEnabled = hasItems;
             btnPrint.IsEnabled = hasItems && hasPaymentMethod;
+        }
+
+        private void ProcessApiDataWithoutClearing(ContractorOrder data)
+        {
+            if (data == null || data.Tables == null || !data.Tables.Any()) return;
+
+            foreach (var table in data.Tables.Where(t => t != null))
+            {
+                string tableNumber = table.OrderNumber.ToString();
+                if (string.IsNullOrEmpty(tableNumber)) continue;
+
+                if (!tableOrders.ContainsKey(tableNumber))
+                {
+                    tableOrders[tableNumber] = new List<ContractorOrder>();
+                }
+
+                var existingOrder = tableOrders[tableNumber].FirstOrDefault(o => o.Id == data.Id);
+                if (existingOrder != null)
+                {
+                    int index = tableOrders[tableNumber].IndexOf(existingOrder);
+                    tableOrders[tableNumber][index] = data;
+                }
+                else
+                {
+                    tableOrders[tableNumber].Add(data);
+                }
+
+                UpdateTableButtonStyle(tableNumber, data);
+            }
+
+            // Agar joriy tanlangan stol bo'lsa, uni yangilash
+            if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
+            {
+                // Faqat stolga tegishli buyurtmalar mavjud bo'lsa, yangilaymiz
+                if (tableOrders.ContainsKey(currentSelectedTable) && tableOrders[currentSelectedTable].Any())
+                {
+                    // ListView ni yangilash
+                    UpdateExistingListView(currentSelectedTable);
+                }
+            }
+        }
+
+        private async Task UpdateExistingTableData(int notCompletedOrderId)
+        {
+            try
+            {
+                var data = await ContractorOrderGetById(notCompletedOrderId);
+                if (data == null) return;
+
+                if (!tableOrders.ContainsKey(currentSelectedTable))
+                {
+                    tableOrders[currentSelectedTable] = new List<ContractorOrder>();
+                }
+
+                // Agar buyurtma mavjud bo'lsa, yangilaymiz
+                var existingOrder = tableOrders[currentSelectedTable].FirstOrDefault(o => o.Id == data.Id);
+                if (existingOrder != null)
+                {
+                    int index = tableOrders[currentSelectedTable].IndexOf(existingOrder);
+                    tableOrders[currentSelectedTable][index] = data;
+                }
+                else
+                {
+                    tableOrders[currentSelectedTable].Add(data);
+                }
+
+                // ListView ni yangilash
+                UpdateExistingListView(currentSelectedTable);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateExistingTableData error: {ex.Message}");
+            }
+        }
+
+        private void UpdateExistingListView(string tableNumber)
+        {
+            if (!tableOrders.TryGetValue(tableNumber, out var orders) || orders == null || !orders.Any()) return;
+
+            // Joriy ListView dagi oxirgi indeksni olish
+            int lastIndex = lvItems.Items.Count;
+
+            var order = orders.FirstOrDefault();
+            if (order == null) return;
+
+            // Yangi buyurtma elementlarini ListView ga qo'shish
+            var orderItems = order.Tables?
+                .Where(t => t != null && !string.IsNullOrEmpty(t.ProductShortName))
+                .Select((item, index) => new OrderItem
+                {
+                    Index = lastIndex + index + 1,
+                    Id = item.Id,
+                    ProductShortName = item.ProductShortName ?? "No Name",
+                    ContractorRequirement = item.ContractorRequirement ?? "No Details",
+                    Quantity = (int)Math.Max(1, item.Quantity),
+                    EstimatedPrice = item.EstimatedPrice,
+                    Amount = item.Amount,
+                    TableNumber = int.TryParse(tableNumber, out int num) ? num : 0
+                })
+                .ToList();
+
+            // Faqat yangi elementlarni qo'shamiz
+            // (Bu joyda ID bilan taqqoslash kerak, lekin oddiylashtirish uchun shunday qoldiramiz)
+            if (orderItems != null)
+            {
+                foreach (var item in orderItems)
+                {
+                    if (!lvItems.Items.OfType<OrderItem>().Any(i => i.Id == item.Id))
+                    {
+                        lvItems.Items.Add(item);
+                    }
+                }
+            }
+
+            // Jami summani yangilash
+            lblAmountValue.Text = $"{order.Amount:F1} UZS";
+            lblAdditinalPaymentValue.Text = $"{order.AdditinalPayment:F1} UZS";
+            lblTotalAmountValue.Text = $"{order.TotalAmount:F1} UZS";
+
+            // To'lov usulini yangilash
+            if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
+            {
+                lblPaymentMethod.Text = order.EstimatedPaymentType;
+                lblPaymentMethod.Foreground = new SolidColorBrush(Colors.Green);
+                PaymentMethodBorder.Background = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(Color.FromRgb(200, 230, 201), 0),
+                        new GradientStop(Color.FromRgb(165, 214, 167), 1)
+                    }
+                };
+            }
+
+            lvItems.Items.Refresh();
+            UpdateButtonStates();
         }
     }
 

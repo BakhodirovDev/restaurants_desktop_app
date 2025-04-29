@@ -246,50 +246,12 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock x:Name="lblRealTime" FontSize="22" FontWeight="Bold" Foreground="#212529" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="lblLastUpdate" Text="Oxirgi yangilanish: —" FontSize="14" Foreground="#757575" VerticalAlignment="Center" Margin="15,0,0,0"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <ToggleButton x:Name="tglAutoRefresh" Content="Avtomatik yangilanish" Width="170" Height="40" 
-                                      IsChecked="True" Checked="tglAutoRefresh_Checked" Unchecked="tglAutoRefresh_Unchecked"
-                                      Margin="0,0,10,0">
-                            <ToggleButton.Style>
-                                <Style TargetType="ToggleButton">
-                                    <Setter Property="Foreground" Value="White"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                    <Setter Property="Padding" Value="15,10"/>
-                                    <Setter Property="Cursor" Value="Hand"/>
-                                    <Setter Property="FontSize" Value="14"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ToggleButton">
-                                                <Border x:Name="border" Background="#4CAF50" CornerRadius="6">
-                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="False">
-                                                        <Setter TargetName="border" Property="Background" Value="#FF9800"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ToggleButton.Style>
-                        </ToggleButton>
-                        <Button x:Name="btnGetData" Content="Yangilash" Width="100" Height="40" Click="btnGetData_Click"
-                                Background="#2196F3" Style="{StaticResource ActionButtonStyle}" Margin="0,0,10,0"/>
                         <Button x:Name="btnLogout" Content="Chiqish" Width="100" Height="40" Click="btnLogout_Click"
                                 Background="#F44336" Style="{StaticResource ActionButtonStyle}"/>
                     </StackPanel>
                 </Grid>
-
-                <Border Grid.Row="1" Background="#E3F2FD" CornerRadius="6" Padding="15,10" Margin="0,0,0,20">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock x:Name="lblStatus" Text="Har 3 sekundda ma'lumotlar yangilanmoqda..." Foreground="#1976D2" FontSize="14"/>
-                        <TextBlock x:Name="lblCountdown" Text="(3)" Foreground="#1976D2" FontWeight="SemiBold" Margin="5,0,0,0" FontSize="14"/>
-                    </StackPanel>
-                </Border>
 
                 <Grid Grid.Row="2" Margin="0,0,0,20">
                     <Border Background="#F8F9FA" CornerRadius="8" Padding="20" BorderThickness="1" BorderBrush="#EEEEEE">
