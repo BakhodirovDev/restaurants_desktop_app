@@ -11,6 +11,9 @@
         public List<OrderItem> Orders { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal ServiceFee { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal DiscountPercentage { get; set; }
+        public bool IsDiscountPercentage { get; set; }
         public decimal GrandTotal { get; set; }
         public int AdditionalPercentage { get; set; }
         public string PaymentTypeText { get; set; }

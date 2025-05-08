@@ -285,7 +285,7 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    
+
                     <!-- Loading Overlay -->
                     <Border x:Name="loadingOverlay" Background="#B0FFFFFF" CornerRadius="8" Visibility="Visible">
                         <Grid>
@@ -359,6 +359,7 @@
                                             <ColumnDefinition Width="100"/>
                                             <ColumnDefinition Width="120"/>
                                             <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="100"/>
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Grid.Column="0" Text="№" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Center"/>
@@ -368,6 +369,7 @@
                                         <TextBlock Grid.Column="4" Text="Soni" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
                                         <TextBlock Grid.Column="5" Text="Narxi" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
                                         <TextBlock Grid.Column="6" Text="Jami summa" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Right"/>
+                                        <TextBlock Grid.Column="7" Text="Amallar" FontWeight="SemiBold" Foreground="#3F3F3F" FontSize="16" TextAlignment="Center"/>
                                     </Grid>
                                 </Border>
                             </Grid>
@@ -400,6 +402,7 @@
                                                                 <ColumnDefinition Width="100"/>
                                                                 <ColumnDefinition Width="120"/>
                                                                 <ColumnDefinition Width="150"/>
+                                                                <ColumnDefinition Width="100"/>
                                                             </Grid.ColumnDefinitions>
 
                                                             <Border Grid.Column="0" Padding="10">
@@ -434,6 +437,31 @@
                                                                 <TextBlock Text="{Binding FormattedAmount}" Foreground="#2196F3" FontSize="14" FontWeight="Bold" 
                                                                            VerticalAlignment="Center" HorizontalAlignment="Right"/>
                                                             </Border>
+
+                                                            <!-- Defect Button -->
+                                                            <Border Grid.Column="7" Padding="5,0,10,0">
+                                                                <Button Click="btnRemoveDefectItem_Click" Tag="{Binding Id}" Width="28" Height="28" Cursor="Hand">
+                                                                    <Button.ToolTip>
+                                                                        <ToolTip Content="Yaroqsiz mahsulotni chiqarish"/>
+                                                                    </Button.ToolTip>
+                                                                    <Button.Template>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <Border x:Name="border" Background="#FFE0E0" CornerRadius="4">
+                                                                                <TextBlock Text="✕" FontSize="14" Foreground="#E53935" 
+                                                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                            </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter TargetName="border" Property="Background" Value="#FFCDD2"/>
+                                                                                </Trigger>
+                                                                                <Trigger Property="IsPressed" Value="True">
+                                                                                    <Setter TargetName="border" Property="Background" Value="#EF9A9A"/>
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </Button.Template>
+                                                                </Button>
+                                                            </Border>
                                                         </Grid>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
@@ -463,63 +491,114 @@
                     </Border>
                     <Border Grid.Column="1" Background="#F8F9FA" CornerRadius="8" Padding="20" BorderThickness="1" BorderBrush="#EEEEEE">
                         <StackPanel>
+                            <!-- Summalar sohasi -->
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Jami summa:" FontSize="14" Foreground="#757575"/>
-                                <TextBlock x:Name="lblAmountValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
+                                <TextBlock Text="Jami summa:" FontSize="16" Foreground="#333333" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblAmountValue" Grid.Column="1" FontSize="16" FontWeight="Medium" Foreground="#333333" Text="0 so'm" 
+                                           HorizontalAlignment="Right" Margin="10,0,0,0"/>
                             </Grid>
+
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Xizmat haqi:" FontSize="14" Foreground="#757575"/>
-                                <TextBlock x:Name="lblAdditinalPaymentValue" Grid.Column="1" FontSize="14" FontWeight="Medium" Foreground="#333333" Text="0 so'm"/>
+                                <TextBlock Text="Xizmat haqi:" FontSize="16" Foreground="#333333" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblAdditinalPaymentValue" Grid.Column="1" FontSize="16" FontWeight="Medium" Foreground="#333333" Text="0 so'm" 
+                                           HorizontalAlignment="Right" Margin="10,0,0,0"/>
                             </Grid>
-                            <Rectangle Height="1" Fill="#DDDDDD" Margin="0,5,0,10"/>
-                            <Grid Margin="0,5,0,15">
+
+                            <!-- Skidka qismi -->
+                            <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="120"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="UMUMIY:" FontSize="16" FontWeight="Bold" Foreground="#333333"/>
-                                <TextBlock x:Name="lblTotalAmountValue" Grid.Column="1" FontSize="16" FontWeight="Bold" Foreground="#4CAF50" Text="0 so'm"/>
+                                <TextBlock Text="Skidka:" FontSize="16" Foreground="#333333" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblDiscountValue" Grid.Column="1" FontSize="16" FontWeight="Medium" Foreground="#E91E63" Text="0 so'm"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,10,0" TextTrimming="None"/>
+                                <Button x:Name="btnChangeDiscount" Grid.Column="2" Width="36" Height="36" Click="btnChangeDiscount_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="#E3F2FD" CornerRadius="8">
+                                                <TextBlock Text="✏️" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#0D47A1"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+                            
+                            <Rectangle Height="1" Fill="#DDDDDD" Margin="0,5,0,15"/>
+                            
+                            <!-- Jami summa qismi -->
+                            <Grid Margin="0,5,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="120"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="UMUMIY:" FontSize="18" FontWeight="Bold" Foreground="#333333" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblTotalAmountValue" Grid.Column="1" FontSize="18" FontWeight="Bold" Foreground="#4CAF50" Text="0 so'm"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="None"/>
                             </Grid>
 
                             <!-- To'lov usuli qismi -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,20">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="To'lov usuli:" FontSize="14" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <Border Grid.Column="1" x:Name="PaymentMethodBorder" CornerRadius="4" Padding="8,4" Effect="{StaticResource CardShadow}">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#E8F0FE" Offset="0"/>
-                                            <GradientStop Color="#E3F2FD" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.Background>
+                                <TextBlock Grid.Column="0" Text="To'lov usuli:" FontSize="16" Foreground="#333333" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <Border Grid.Column="1" x:Name="PaymentMethodBorder" CornerRadius="6" Padding="8,5" Background="#E3F2FD" Height="36">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" x:Name="lblPaymentMethod" Text="Tanlanmagan" FontSize="14" FontWeight="Medium" Foreground="#F44336" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="1" x:Name="btnChangePaymentMethod" Content="✎" Width="24" Height="24" Click="btnChangePaymentMethod_Click"
-                                                Style="{StaticResource EditIconButtonStyle}" Margin="5,0,0,0"/>
+                                        <TextBlock Grid.Column="0" x:Name="lblPaymentMethod" Text="Наличности" FontSize="14" FontWeight="Medium" 
+                                                   Foreground="#4CAF50" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <Button Grid.Column="1" x:Name="btnChangePaymentMethod" Width="28" Height="28" Click="btnChangePaymentMethod_Click">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#E3F2FD" CornerRadius="6">
+                                                        <TextBlock Text="✏️" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#0D47A1"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </Grid>
-
+                            
                             <!-- Tugmalar -->
-                            <Button x:Name="btnPrint" Content="Chek chiqarish" Height="44" Click="btnPrint_Click" 
-                                    Background="#2196F3" Style="{StaticResource ActionButtonStyle}"/>
-                            <Button x:Name="btnCompleteOrder" Content="Buyurtmani tugatish" Height="44" Click="btnCompleteOrder_Click" 
-                                    Background="#FF9800" Style="{StaticResource ActionButtonStyle}" Margin="0,10,0,0"/>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Button Grid.Row="0" x:Name="btnCompleteOrder" Content="Buyurtmani tugatish" Height="50" Click="btnCompleteOrder_Click" 
+                                        Background="#2196F3" Foreground="White" Margin="0,0,0,15"
+                                        FontSize="16" FontWeight="Bold" Cursor="Hand" BorderThickness="0">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+                                <Button Grid.Row="1" x:Name="btnPrint" Content="Chek chiqarish" Height="50" Click="btnPrint_Click" 
+                                        Background="#E3F2FD" Foreground="#2196F3"
+                                        FontSize="16" FontWeight="Bold" Cursor="Hand" BorderThickness="0">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+                            </Grid>
                         </StackPanel>
                     </Border>
                 </Grid>

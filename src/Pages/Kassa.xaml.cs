@@ -6,6 +6,7 @@ using Restaurants.Class.Contractor_GetList;
 using Restaurants.Class.ContractorOrder_Get;
 using Restaurants.Class.Printer;
 using Restaurants.Helper;
+using Restaurants.Pages;
 using Restaurants.Pages.Windows;
 using Restaurants.Printer;
 using System.Drawing.Printing;
@@ -31,6 +32,11 @@ namespace Restaurants.Classes
         private string currentSelectedTable = "-1"; // String sifatida boshlang'ich qiymat
         private readonly Dictionary<string, List<ContractorOrder>> tableOrders = new();
         private readonly XPrinter _printer;
+        
+        // Discount-related properties
+        private decimal discountAmount = 0;
+        private bool isDiscountPercentage = true;
+        private decimal discountPercentage = 0;
 
         public Kassa(HttpClient httpClient, XPrinter printer)
         {
@@ -263,9 +269,15 @@ namespace Restaurants.Classes
         private void LoadTableOrders(string tableNumber)
         {
             lvItems.Items.Clear();
-            lblAmountValue.Text = "0.0 UZS";
-            lblAdditinalPaymentValue.Text = "0.0 UZS";
-            lblTotalAmountValue.Text = "0.0 UZS";
+            lblAmountValue.Text = "0.0 so'm";
+            lblAdditinalPaymentValue.Text = "0.0 so'm";
+            lblDiscountValue.Text = "0.0 so'm";
+            lblTotalAmountValue.Text = "0.0 so'm";
+            
+            // Reset discount values when loading a new table
+            discountAmount = 0;
+            isDiscountPercentage = true;
+            discountPercentage = 0;
 
             if (!tableOrders.TryGetValue(tableNumber, out var orders) || orders == null || !orders.Any())
             {
@@ -346,9 +358,14 @@ namespace Restaurants.Classes
                     }
                     
                     // Format currency with spaces instead of commas
-                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} UZS";
-                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} UZS";
-                    lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} UZS";
+                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
+                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm";
+                    
+                    // Calculate total with discount
+                    decimal total = order.Amount + order.AdditinalPayment - discountAmount;
+                    if (total < 0) total = 0;
+                    
+                    lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(total)} so'm";
                     
                     // To'lov turini ContractorOrder dan olish
                     if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
@@ -633,7 +650,7 @@ namespace Restaurants.Classes
                     };
                     
                     // Convert request to JSON
-                    var content = new StringContent(JsonConvert.SerializeObject(requestData), Encoding.UTF8, "application/json-patch+json");
+                    var content = new StringContent(JsonConvert.SerializeObject(requestData), Encoding.UTF8, "application/json");
                     
                     // Send request
                     HttpResponseMessage response = await client.PostAsync("https://crm-api.webase.uz/crm/AdditionalPayment/GetList", content);
@@ -727,9 +744,12 @@ namespace Restaurants.Classes
                 if (additionalPercentage > 0)
                 {
                     serviceFee = Math.Round(order.Amount * additionalPercentage / 100, 2);
-                    grandTotal = order.Amount + serviceFee;
                 }
             }
+            
+            // Include discount in total calculation
+            grandTotal = order.Amount + serviceFee - discountAmount;
+            if (grandTotal < 0) grandTotal = 0;
         
             return new PrintOrder
             {
@@ -755,6 +775,9 @@ namespace Restaurants.Classes
                     .ToList() ?? new List<OrderItem>(),
                 TotalAmount = Math.Round(order.Amount, 2),
                 ServiceFee = serviceFee,
+                DiscountAmount = discountAmount,
+                DiscountPercentage = discountPercentage,
+                IsDiscountPercentage = isDiscountPercentage,
                 GrandTotal = grandTotal,
                 AdditionalPercentage = additionalPercentage,
                 PaymentTypeText = order.EstimatedPaymentType ?? "Naqd"
@@ -1301,9 +1324,9 @@ namespace Restaurants.Classes
             }
 
             // Jami summani yangilash
-            lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} UZS";
-            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} UZS";
-            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} UZS";
+            lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
+            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm";
+            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} so'm";
 
             // To'lov usulini yangilash
             if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
@@ -1324,6 +1347,445 @@ namespace Restaurants.Classes
 
             lvItems.Items.Refresh();
             UpdateButtonStates();
+        }
+
+        private void btnChangeDiscount_Click(object sender, RoutedEventArgs e)
+        {
+            // Agar stol tanlanmagan bo'lsa, xabar chiqaramiz
+            if (string.IsNullOrEmpty(currentSelectedTable) || currentSelectedTable == "-1")
+            {
+                MessageBox.Show("Iltimos, avval stol tanlang!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Stolga tegishli buyurtma mavjudligini tekshiramiz
+            if (!tableOrders.TryGetValue(currentSelectedTable, out var orders) || orders == null || !orders.Any())
+            {
+                MessageBox.Show("Tanlangan stolda buyurtma mavjud emas!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var order = orders.FirstOrDefault();
+            if (order == null)
+            {
+                MessageBox.Show("Buyurtma ma'lumotlari topilmadi!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                // Create blur effect for the main window
+                System.Windows.Media.Effects.BlurEffect blurEffect = new System.Windows.Media.Effects.BlurEffect
+                {
+                    Radius = 10,
+                    KernelType = System.Windows.Media.Effects.KernelType.Gaussian
+                };
+
+                // Apply blur effect to the content
+                this.Effect = blurEffect;
+
+                // Create semi-transparent overlay
+                Grid overlay = new Grid
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(100, 0, 0, 0)),
+                    Opacity = 0.5,
+                    IsHitTestVisible = true
+                };
+                
+                // Add overlay to the window
+                Grid.SetRowSpan(overlay, 100);
+                Grid.SetColumnSpan(overlay, 100);
+                Grid.SetZIndex(overlay, 1000);
+                
+                // Get main grid from the window
+                var mainGrid = this.Content as Grid;
+                mainGrid?.Children.Add(overlay);
+
+                // Open the discount settings window
+                var discountWindow = new DiscountSettings(order.Amount, discountAmount, isDiscountPercentage);
+                discountWindow.Owner = this;
+                
+                // When discount window closes, remove blur and overlay
+                discountWindow.Closed += (s, args) => 
+                {
+                    this.Effect = null;
+                    mainGrid?.Children.Remove(overlay);
+                };
+                
+                bool? result = discountWindow.ShowDialog();
+                
+                if (result == true)
+                {
+                    if (discountWindow.DiscountApplied)
+                    {
+                        // Save the discount settings
+                        discountAmount = discountWindow.DiscountAmount;
+                        isDiscountPercentage = discountWindow.IsPercentage;
+                        discountPercentage = discountWindow.DiscountPercentage;
+                        
+                        // Update the UI with discount
+                        lblDiscountValue.Text = $"{AppSettings.FormatCurrency(discountAmount)} so'm";
+                    }
+                    else
+                    {
+                        // Reset discount if user clicked reset
+                        discountAmount = 0;
+                        isDiscountPercentage = true;
+                        discountPercentage = 0;
+                        lblDiscountValue.Text = "0 so'm";
+                    }
+                    
+                    // Update the total amount with discount applied
+                    UpdateTotalWithDiscount();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Chegirma sozlashda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateTotalWithDiscount()
+        {
+            if (string.IsNullOrEmpty(currentSelectedTable) || currentSelectedTable == "-1")
+                return;
+
+            if (!tableOrders.TryGetValue(currentSelectedTable, out var orders) || orders == null || !orders.Any())
+                return;
+            
+            var order = orders.FirstOrDefault();
+            if (order == null)
+                return;
+                
+            // Get original amounts
+            decimal subtotal = order.Amount;
+            decimal serviceFee = order.AdditinalPayment;
+            
+            // Apply discount
+            decimal total = subtotal + serviceFee - discountAmount;
+            
+            // Ensure total is not negative
+            if (total < 0)
+                total = 0;
+                
+            // Update the UI
+            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(total)} so'm";
+        }
+
+        private void btnRemoveDefectItem_Click(object sender, RoutedEventArgs e)
+        {
+            // Get the item ID from the button's tag
+            if (sender is Button button && button.Tag != null)
+            {
+                string itemIdStr = button.Tag.ToString();
+                
+                // Parse the item ID
+                if (!int.TryParse(itemIdStr, out int itemId))
+                {
+                    MessageBox.Show("Noto'g'ri mahsulot identifikatori", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                try
+                {
+                    // Get the current table and order
+                    if (string.IsNullOrEmpty(currentSelectedTable) || currentSelectedTable == "-1")
+                    {
+                        MessageBox.Show("Iltimos, avval stol tanlang!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    if (!tableOrders.TryGetValue(currentSelectedTable, out var orders) || orders == null || !orders.Any())
+                    {
+                        MessageBox.Show("Tanlangan stolda buyurtma mavjud emas!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    var order = orders.FirstOrDefault();
+                    if (order == null || order.Tables == null)
+                    {
+                        MessageBox.Show("Buyurtma ma'lumotlari topilmadi!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    // Find the item in the order
+                    var item = order.Tables.FirstOrDefault(t => t.Id == itemId);
+                    if (item == null)
+                    {
+                        MessageBox.Show("Tanlangan mahsulot topilmadi!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // Check if quantity is more than 1
+                    int totalQuantity = (int)Math.Max(1, item.Quantity);
+                    int defectiveQuantity = totalQuantity;
+                    bool removeEntireItem = true;
+
+                    if (totalQuantity > 1)
+                    {
+                        // Create a simple input dialog for quantity
+                        Window quantityWindow = new Window
+                        {
+                            Title = "Yaroqsiz miqdorini kiriting",
+                            Width = 400,
+                            Height = 260,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            Owner = this,
+                            ResizeMode = ResizeMode.NoResize,
+                            Background = new SolidColorBrush(Colors.White),
+                            WindowStyle = WindowStyle.SingleBorderWindow
+                        };
+
+                        // Create main grid with padding
+                        Grid mainGrid = new Grid { Margin = new Thickness(20) };
+                        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                        // Add header text
+                        TextBlock headerText = new TextBlock
+                        {
+                            Text = $"\"{item.ProductShortName}\" - jami soni: {totalQuantity}",
+                            FontSize = 14,
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(0, 0, 0, 20),
+                            FontWeight = FontWeights.SemiBold
+                        };
+                        Grid.SetRow(headerText, 0);
+                        mainGrid.Children.Add(headerText);
+
+                        // Add label
+                        TextBlock labelText = new TextBlock
+                        {
+                            Text = "Yaroqsiz mahsulotlar soni:",
+                            FontSize = 14,
+                            Margin = new Thickness(0, 0, 0, 10)
+                        };
+                        Grid.SetRow(labelText, 1);
+                        mainGrid.Children.Add(labelText);
+
+                        // Add numeric input
+                        TextBox quantityInput = new TextBox
+                        {
+                            Text = "1",
+                            FontSize = 16,
+                            Height = 40,
+                            Padding = new Thickness(10, 8, 10, 8),
+                            Margin = new Thickness(0, 0, 0, 20),
+                            VerticalContentAlignment = VerticalAlignment.Center,
+                            HorizontalAlignment = HorizontalAlignment.Stretch
+                        };
+                        
+                        // Allow only numbers
+                        quantityInput.PreviewTextInput += (s, args) =>
+                        {
+                            args.Handled = !int.TryParse(args.Text, out _);
+                        };
+                        Grid.SetRow(quantityInput, 2);
+                        mainGrid.Children.Add(quantityInput);
+
+                        // Add buttons
+                        Grid buttonGrid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+                        buttonGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                        buttonGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                        Button cancelButton = new Button
+                        {
+                            Content = "Bekor qilish",
+                            Height = 40,
+                            Margin = new Thickness(0, 0, 5, 0),
+                            FontSize = 14,
+                            Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)),
+                            Foreground = new SolidColorBrush(Colors.White),
+                            BorderThickness = new Thickness(0)
+                        };
+                        
+                        // Add corner radius
+                        cancelButton.Resources = new ResourceDictionary();
+                        Style cancelStyle = new Style(typeof(Border));
+                        cancelStyle.Setters.Add(new Setter(Border.CornerRadiusProperty, new CornerRadius(4)));
+                        cancelButton.Resources.Add(typeof(Border), cancelStyle);
+                        
+                        cancelButton.Click += (s, args) =>
+                        {
+                            quantityWindow.DialogResult = false;
+                        };
+                        Grid.SetColumn(cancelButton, 0);
+                        buttonGrid.Children.Add(cancelButton);
+
+                        Button confirmButton = new Button
+                        {
+                            Content = "Tasdiqlash",
+                            Height = 40,
+                            Margin = new Thickness(5, 0, 0, 0),
+                            FontSize = 14,
+                            Background = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                            Foreground = new SolidColorBrush(Colors.White),
+                            BorderThickness = new Thickness(0)
+                        };
+                        
+                        // Add corner radius
+                        confirmButton.Resources = new ResourceDictionary();
+                        Style confirmStyle = new Style(typeof(Border));
+                        confirmStyle.Setters.Add(new Setter(Border.CornerRadiusProperty, new CornerRadius(4)));
+                        confirmButton.Resources.Add(typeof(Border), confirmStyle);
+                        
+                        confirmButton.Click += (s, args) =>
+                        {
+                            if (int.TryParse(quantityInput.Text, out int enteredQuantity) && 
+                                enteredQuantity > 0 && enteredQuantity <= totalQuantity)
+                            {
+                                defectiveQuantity = enteredQuantity;
+                                quantityWindow.DialogResult = true;
+                            }
+                            else
+                            {
+                                MessageBox.Show("Iltimos, to'g'ri son kiriting!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            }
+                        };
+                        Grid.SetColumn(confirmButton, 1);
+                        buttonGrid.Children.Add(confirmButton);
+
+                        Grid.SetRow(buttonGrid, 3);
+                        mainGrid.Children.Add(buttonGrid);
+
+                        quantityWindow.Content = mainGrid;
+                        
+                        // Apply blur effect to main window
+                        System.Windows.Media.Effects.BlurEffect blurEffect = new System.Windows.Media.Effects.BlurEffect
+                        {
+                            Radius = 10,
+                            KernelType = System.Windows.Media.Effects.KernelType.Gaussian
+                        };
+                        this.Effect = blurEffect;
+                        
+                        // Show dialog
+                        bool? result = quantityWindow.ShowDialog();
+                        
+                        // Remove blur effect
+                        this.Effect = null;
+                        
+                        if (result != true)
+                        {
+                            return; // User cancelled
+                        }
+                        
+                        // If all items are defective, remove the entire item
+                        // Otherwise, decrease the quantity and update the amount
+                        removeEntireItem = (defectiveQuantity >= totalQuantity);
+                    }
+                    else
+                    {
+                        // If quantity is 1, ask for confirmation before removing
+                        MessageBoxResult result = MessageBox.Show(
+                            $"Mahsulot \"{item.ProductShortName}\" yaroqsiz sifatida belgilansinmi?", 
+                            "Yaroqsiz mahsulot", 
+                            MessageBoxButton.YesNo, 
+                            MessageBoxImage.Question);
+                        
+                        if (result == MessageBoxResult.No)
+                            return;
+                    }
+
+                    if (removeEntireItem)
+                    {
+                        // Remove the entire item
+                        decimal itemAmount = item.Amount;
+                        order.Amount -= itemAmount;
+                        
+                        // Remove the item from the tables list
+                        order.Tables.Remove(item);
+                        
+                        // Remove the item from the ListView
+                        OrderItem itemToRemove = null;
+                        foreach (OrderItem orderItem in lvItems.Items)
+                        {
+                            if (orderItem.Id == itemId)
+                            {
+                                itemToRemove = orderItem;
+                                break;
+                            }
+                        }
+                        
+                        if (itemToRemove != null)
+                        {
+                            lvItems.Items.Remove(itemToRemove);
+                        }
+                    }
+                    else
+                    {
+                        // Calculate the amount for defective items
+                        decimal singleItemPrice = item.EstimatedPrice;
+                        decimal defectiveAmount = singleItemPrice * defectiveQuantity;
+                        
+                        // Update the order amount
+                        order.Amount -= defectiveAmount;
+                        
+                        // Update the item quantity and amount
+                        item.Quantity -= defectiveQuantity;
+                        item.Amount = item.EstimatedPrice * item.Quantity;
+                        
+                        // Update the ListView item
+                        foreach (OrderItem orderItem in lvItems.Items)
+                        {
+                            if (orderItem.Id == itemId)
+                            {
+                                orderItem.Quantity -= defectiveQuantity;
+                                orderItem.Amount = orderItem.EstimatedPrice * orderItem.Quantity;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Recalculate service fee if applicable
+                    if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
+                    {
+                        int serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
+                        order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
+                    }
+                    else
+                    {
+                        // Use our own setting if API didn't provide a value
+                        int serviceFeePercentage = AppSettings.ServiceFeePercentage;
+                        
+                        // Calculate the additional payment based on our percentage
+                        if (serviceFeePercentage > 0)
+                        {
+                            order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
+                        }
+                    }
+                    
+                    // Update total amount
+                    order.TotalAmount = order.Amount + order.AdditinalPayment - discountAmount;
+                    
+                    // Renumber remaining items
+                    int index = 1;
+                    foreach (OrderItem orderItem in lvItems.Items)
+                    {
+                        orderItem.Index = index++;
+                    }
+                    
+                    // Update the UI
+                    lvItems.Items.Refresh();
+                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
+                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm";
+                    UpdateTotalWithDiscount();
+                    
+                    if (removeEntireItem)
+                    {
+                        MessageBox.Show("Mahsulot yaroqsiz sifatida chiqarildi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else 
+                    {
+                        MessageBox.Show($"{defectiveQuantity} ta mahsulot yaroqsiz sifatida belgilandi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Xatolik yuz berdi: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
     }
 

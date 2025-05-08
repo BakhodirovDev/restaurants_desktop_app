@@ -147,27 +147,27 @@
                     Click="ExitButton_Click"
                     Panel.ZIndex="1"/>
             
-            <Grid Margin="20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-                <!-- Header -->
-                <TextBlock Grid.Row="0" Text="Kirish" FontSize="24" FontWeight="Bold" Foreground="#212529" 
+            <!-- Header -->
+            <TextBlock Grid.Row="0" Text="Kirish" FontSize="24" FontWeight="Bold" Foreground="#212529" 
                        HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
-                <!-- Login Form -->
-                <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="Foydalanuvchi nomi" FontSize="14" Foreground="#757575" Margin="0,0,0,5"/>
-                    <TextBox Name="UsernameTextBox" Width="250" Height="40" Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,15"/>
+            <!-- Login Form -->
+            <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="Foydalanuvchi nomi" FontSize="14" Foreground="#757575" Margin="0,0,0,5"/>
+                <TextBox Name="UsernameTextBox" Width="250" Height="40" Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,15"/>
 
-                    <TextBlock Text="Parol" FontSize="14" Foreground="#757575" Margin="0,0,0,5"/>
-                    <PasswordBox Name="PasswordBox" Width="250" Height="40" Style="{StaticResource ModernPasswordBoxStyle}" Margin="0,0,0,20"/>
+                <TextBlock Text="Parol" FontSize="14" Foreground="#757575" Margin="0,0,0,5"/>
+                <PasswordBox Name="PasswordBox" Width="250" Height="40" Style="{StaticResource ModernPasswordBoxStyle}" Margin="0,0,0,20"/>
 
-                    <Button Content="Kirish" Width="250" Height="45" Click="LoginButton_Click" 
+                <Button Content="Kirish" Width="250" Height="45" Click="LoginButton_Click" 
                         Style="{StaticResource ModernButtonStyle}"/>
-                </StackPanel>
+            </StackPanel>
             </Grid>
         </Grid>
     </Border>

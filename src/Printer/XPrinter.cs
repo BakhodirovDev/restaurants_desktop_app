@@ -163,6 +163,20 @@ public class XPrinter
         int serviceDots = 48 - serviceLabel.Length - serviceValue.Length;
         sb.AppendLine($"{serviceLabel}{new string('.', serviceDots)}{serviceValue}");
 
+        // Add discount information if discount is applied
+        if (order.DiscountAmount > 0)
+        {
+            string discountLabel;
+            if (order.IsDiscountPercentage)
+                discountLabel = $"Chegirma ({order.DiscountPercentage}%): ";
+            else
+                discountLabel = "Chegirma: ";
+                
+            string discountValue = $"-{FormatAmount(order.DiscountAmount)} UZS";
+            int discountDots = 48 - discountLabel.Length - discountValue.Length;
+            sb.AppendLine($"{discountLabel}{new string('.', discountDots)}{discountValue}");
+        }
+
         string paymentLabel = "To'lov turi: ";
         string paymentValue = $"{order.PaymentTypeText}";
         int paymentDots = 48 - paymentLabel.Length - paymentValue.Length;
