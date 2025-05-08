@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Restaurants;
 using Restaurants.Class;
 using Restaurants.Class.Contractor_GetList;
 using Restaurants.Class.ContractorOrder_Get;
@@ -52,6 +53,9 @@ namespace Restaurants.Classes
 
             this.Loaded += Window_Loaded;
             _printer = printer;
+            
+            // Set loading overlay to visible by default
+            loadingOverlay.Visibility = Visibility.Visible;
         }
 
         private void Kassa_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -97,6 +101,8 @@ namespace Restaurants.Classes
 
         private async Task<ContractorOrder> ContractorOrderGet()
         {
+            // Remove the loading overlay show from here since GetData already shows it
+            
             string token = await EnsureValidTokenAsync();
             var request = new HttpRequestMessage(HttpMethod.Get, "https://crm-api.webase.uz/crm/ContractorOrder/Get");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -158,13 +164,13 @@ namespace Restaurants.Classes
                 string tableName = table.FirstName;
                 int productsCount = 0;
                 int completedProductsCount = 0;
-                string responsibleName = "Null";
+                string responsibleName = "";
 
                 if (tableOrders.TryGetValue(tableName, out var orders) && orders != null && orders.Any())
                 {
                     productsCount = orders.Sum(o => o.TotalProductsCount);
                     completedProductsCount = orders.Sum(o => o.CompletedProductsCount);
-                    responsibleName = orders.FirstOrDefault()?.Responsible ?? "Null";
+                    responsibleName = orders.FirstOrDefault()?.Responsible ?? "";
                 }
 
                 string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
@@ -280,6 +286,13 @@ namespace Restaurants.Classes
                 return;
             }
 
+            // Update the responsible person name if available
+            var firstOrder = orders.FirstOrDefault();
+            if (firstOrder != null && !string.IsNullOrEmpty(firstOrder.Responsible))
+            {
+                lblOfitsiantValue.Text = firstOrder.Responsible;
+            }
+
             var orderItems = orders
                 .SelectMany(o => o.Tables ?? new List<ContractorOrderTable>())
                 .Where(t => t != null && !string.IsNullOrEmpty(t.ProductShortName))
@@ -311,9 +324,32 @@ namespace Restaurants.Classes
                 var order = orders.FirstOrDefault();
                 if (order != null)
                 {
-                    lblAmountValue.Text = $"{order.Amount:F1} UZS";
-                    lblAdditinalPaymentValue.Text = $"{order.AdditinalPayment:F1} UZS";
-                    lblTotalAmountValue.Text = $"{order.TotalAmount:F1} UZS";
+                    // Calculate service fee based on settings if API value is not available
+                    int serviceFeePercentage = 0;
+                    
+                    if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
+                    {
+                        // Use API value if available
+                        serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
+                    }
+                    else
+                    {
+                        // Use our own setting if API didn't provide a value
+                        serviceFeePercentage = AppSettings.ServiceFeePercentage;
+                        
+                        // Calculate the additional payment based on our percentage
+                        if (serviceFeePercentage > 0)
+                        {
+                            order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
+                            order.TotalAmount = order.Amount + order.AdditinalPayment;
+                        }
+                    }
+                    
+                    // Format currency with spaces instead of commas
+                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} UZS";
+                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} UZS";
+                    lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} UZS";
+                    
                     // To'lov turini ContractorOrder dan olish
                     if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
                     {
@@ -356,24 +392,31 @@ namespace Restaurants.Classes
         {
             try
             {
+                // Show loading before fetching data
+                loadingOverlay.Visibility = Visibility.Visible;
+                
                 var data = await ContractorOrderGet();
+                
+                // Hide loading overlay after getting data
+                loadingOverlay.Visibility = Visibility.Collapsed;
+                
                 if (data == null)
                 {
                     MessageBox.Show("No order data returned from the API.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    lblRestoranValue.Text = "Null";
-                    lblOfitsiantValue.Text = "Null";
-                    lblSanaValue.Text = "Null";
-                    lblVaqtValue.Text = "Null";
-                    lblChekRaqamiValue.Text = "#Null";
+                    lblRestoranValue.Text = "";
+                    lblOfitsiantValue.Text = "";
+                    lblSanaValue.Text = "";
+                    lblVaqtValue.Text = "";
+                    lblChekRaqamiValue.Text = "#";
                     ProcessApiData(new ContractorOrder());
                     return;
                 }
 
-                lblRestoranValue.Text = data.OrganizationAreasOfActivity ?? "Null";
-                lblOfitsiantValue.Text = data.Responsible ?? "Null";
-                lblSanaValue.Text = data.DocDate ?? "Null";
-                lblVaqtValue.Text = data.DocTime ?? "Null";
-                lblChekRaqamiValue.Text = "#" + (data.DocNumber ?? "Null");
+                lblRestoranValue.Text = data.OrganizationAreasOfActivity ?? "";
+                lblOfitsiantValue.Text = data.Responsible ?? "";
+                lblSanaValue.Text = data.DocDate ?? "";
+                lblVaqtValue.Text = data.DocTime ?? "";
+                lblChekRaqamiValue.Text = "#" + (data.DocNumber ?? "");
 
                 ProcessApiData(data);
 
@@ -389,6 +432,8 @@ namespace Restaurants.Classes
             }
             catch (Exception ex)
             {
+                // Hide loading overlay in case of error
+                loadingOverlay.Visibility = Visibility.Collapsed;
                 MessageBox.Show($"Error occurred while fetching order data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -449,7 +494,14 @@ namespace Restaurants.Classes
         {
             try
             {
+                // Show loading overlay when fetching data for table
+                loadingOverlay.Visibility = Visibility.Visible;
+                
                 var data = await ContractorOrderGetById(notCompletedOrderId);
+                
+                // Hide loading overlay after getting data
+                loadingOverlay.Visibility = Visibility.Collapsed;
+                
                 if (data == null)
                 {
                     MessageBox.Show($"No order data returned for Order ID {notCompletedOrderId}.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -466,6 +518,8 @@ namespace Restaurants.Classes
             }
             catch (Exception ex)
             {
+                // Hide loading overlay in case of error
+                loadingOverlay.Visibility = Visibility.Collapsed;
                 MessageBox.Show($"Error occurred while fetching order data for ID {notCompletedOrderId}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -485,6 +539,23 @@ namespace Restaurants.Classes
             if (!tableOrders[tableNumber].Any(o => o.Id == data.Id))
             {
                 tableOrders[tableNumber].Add(data);
+            }
+            
+            // Update the responsible person name if available
+            if (!string.IsNullOrEmpty(data.Responsible))
+            {
+                lblOfitsiantValue.Text = data.Responsible;
+                
+                // Update the responsible name in TableButtonData too
+                foreach (Button btn in tablesPanel.Children)
+                {
+                    if (btn.Tag is TableButtonData tagData && tagData.TableNumber == tableNumber)
+                    {
+                        tagData.ResponsibleName = data.Responsible;
+                        btn.Tag = tagData;
+                        break;
+                    }
+                }
             }
 
             foreach (Button btn in tablesPanel.Children)
@@ -507,6 +578,9 @@ namespace Restaurants.Classes
         private async Task SmoothAutoRefresh()
         {
             try {
+                // Fetch and update service fee percentage
+                await UpdateServiceFeePercentageFromApi();
+                
                 // Yangi ma'lumotlarni ol, ammo mavjud ma'lumotlarni tozalamasdan
                 var data1 = await ContractorOrderGet();
                 if (data1 == null) return;
@@ -532,6 +606,66 @@ namespace Restaurants.Classes
             }
             catch (Exception ex) {
                 Console.WriteLine($"Silent auto refresh error: {ex.Message}");
+            }
+        }
+        
+        private async Task UpdateServiceFeePercentageFromApi()
+        {
+            try
+            {
+                string token = await EnsureValidTokenAsync();
+                if (string.IsNullOrEmpty(token)) return;
+                
+                using (HttpClient client = new HttpClient())
+                {
+                    // Set headers
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                    client.DefaultRequestHeaders.Add("accept", "text/plain");
+                    
+                    // Create request body
+                    var requestData = new
+                    {
+                        search = (string)null,
+                        sortBy = "id",
+                        orderType = "DESC",
+                        page = 0,
+                        pageSize = 0
+                    };
+                    
+                    // Convert request to JSON
+                    var content = new StringContent(JsonConvert.SerializeObject(requestData), Encoding.UTF8, "application/json-patch+json");
+                    
+                    // Send request
+                    HttpResponseMessage response = await client.PostAsync("https://crm-api.webase.uz/crm/AdditionalPayment/GetList", content);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string jsonResponse = await response.Content.ReadAsStringAsync();
+                        var result = JsonConvert.DeserializeObject<AdditionalPaymentResponse>(jsonResponse);
+                        
+                        if (result != null && result.Rows != null && result.Rows.Count > 0)
+                        {
+                            // Get first row as requested
+                            var firstPayment = result.Rows[0];
+                            
+                            // Update the local service fee percentage if it's different
+                            if (AppSettings.ServiceFeePercentage != firstPayment.Percentage)
+                            {
+                                AppSettings.ServiceFeePercentage = firstPayment.Percentage;
+                                
+                                // If a table is selected, refresh its display to show updated service fee
+                                if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
+                                {
+                                    LoadTableOrders(currentSelectedTable);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating service fee from API: {ex.Message}");
             }
         }
 
@@ -574,14 +708,37 @@ namespace Restaurants.Classes
 
         private PrintOrder CreatePrintOrder(ContractorOrder order)
         {
+            // Calculate service fee based on settings if API value is not available
+            int additionalPercentage = 0;
+            decimal serviceFee = order.AdditinalPayment;
+            decimal grandTotal = order.TotalAmount;
+            
+            if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
+            {
+                // Use API value if available
+                additionalPercentage = order.AdditionalPayments[0].AdditionalPercentage;
+            }
+            else
+            {
+                // Use our own setting if API didn't provide a value
+                additionalPercentage = AppSettings.ServiceFeePercentage;
+                
+                // Recalculate the service fee and total
+                if (additionalPercentage > 0)
+                {
+                    serviceFee = Math.Round(order.Amount * additionalPercentage / 100, 2);
+                    grandTotal = order.Amount + serviceFee;
+                }
+            }
+        
             return new PrintOrder
             {
                 TableNumber = currentSelectedTable,
-                RestaurantName = order.OrganizationAreasOfActivity ?? "Null",
-                WaiterName = order.Responsible ?? "Null",
-                OrderDate = order.DocDate ?? "Null",
-                OrderTime = order.DocTime ?? "Null",
-                CheckNumber = order.DocNumber ?? "Null",
+                RestaurantName = order.OrganizationAreasOfActivity ?? "",
+                WaiterName = order.Responsible ?? "",
+                OrderDate = order.DocDate ?? "",
+                OrderTime = order.DocTime ?? "",
+                CheckNumber = order.DocNumber ?? "",
                 Orders = order.Tables?
                     .Where(item => item != null)
                     .Select(item => new OrderItem
@@ -590,16 +747,16 @@ namespace Restaurants.Classes
                         ProductShortName = item.ProductShortName ?? "No Name",
                         ContractorRequirement = item.ContractorRequirement ?? "No Details",
                         Quantity = (int)Math.Max(1, item.Quantity),
-                        EstimatedPrice = Math.Round(Math.Max(0, item.EstimatedPrice), 1),
-                        Amount = Math.Round(Math.Max(0, item.Amount), 1),
+                        EstimatedPrice = Math.Round(Math.Max(0, item.EstimatedPrice), 2),
+                        Amount = Math.Round(Math.Max(0, item.Amount), 2),
                         TableNumber = int.TryParse(currentSelectedTable, out int num) ? num : 0
                     })
                     .Where(item => !string.IsNullOrEmpty(item.ProductShortName))
                     .ToList() ?? new List<OrderItem>(),
-                TotalAmount = Math.Round(order.Amount, 1),
-                ServiceFee = Math.Round(order.AdditinalPayment, 1),
-                GrandTotal = Math.Round(order.TotalAmount, 1),
-                AdditionalPercentage = order.AdditionalPayments.Count > 0 ? order.AdditionalPayments[0].AdditionalPercentage : 0,
+                TotalAmount = Math.Round(order.Amount, 2),
+                ServiceFee = serviceFee,
+                GrandTotal = grandTotal,
+                AdditionalPercentage = additionalPercentage,
                 PaymentTypeText = order.EstimatedPaymentType ?? "Naqd"
             };
         }
@@ -616,12 +773,68 @@ namespace Restaurants.Classes
                 if (timer != null) timer.Stop();
                 if (timeTimer != null) timeTimer.Stop();
 
-                new MainWindow().Show();
+                // For full screen application, directly close it
+                MainWindow mainWindow = new MainWindow();
+                mainWindow.Show();
                 Close();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Tizimdan chiqishda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void btnSettings_Click(object sender, RoutedEventArgs e)
+        {
+            // Create blur effect for the main window
+            System.Windows.Media.Effects.BlurEffect blurEffect = new System.Windows.Media.Effects.BlurEffect
+            {
+                Radius = 10,
+                KernelType = System.Windows.Media.Effects.KernelType.Gaussian
+            };
+
+            // Apply blur effect to the content
+            this.Effect = blurEffect;
+
+            // Create semi-transparent overlay
+            Grid overlay = new Grid
+            {
+                Background = new SolidColorBrush(Color.FromArgb(100, 0, 0, 0)),
+                Opacity = 0.5,
+                IsHitTestVisible = true
+            };
+            
+            // Add overlay to the window
+            Grid.SetRowSpan(overlay, 100);
+            Grid.SetColumnSpan(overlay, 100);
+            Grid.SetZIndex(overlay, 1000);
+            
+            // Get main grid from the window
+            var mainGrid = this.Content as Grid;
+            mainGrid?.Children.Add(overlay);
+
+            // Create and show settings window    
+            var settingsWindow = new Pages.Windows.ServiceFeeSettings();
+            settingsWindow.Owner = this;
+            
+            // When settings window closes, remove blur and overlay
+            settingsWindow.Closed += (s, args) => 
+            {
+                this.Effect = null;
+                mainGrid?.Children.Remove(overlay);
+            };
+            
+            // Show settings dialog
+            bool? result = settingsWindow.ShowDialog();
+            
+            // If the dialog result is true (settings were saved), refresh the data to update service fee
+            if (result == true)
+            {
+                // Refresh the currently selected table's data if any table is selected
+                if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
+                {
+                    LoadTableOrders(currentSelectedTable);
+                }
             }
         }
 
@@ -1066,10 +1279,31 @@ namespace Restaurants.Classes
                 }
             }
 
+            // Calculate service fee based on settings if API value is not available
+            int serviceFeePercentage = 0;
+            
+            if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
+            {
+                // Use API value if available
+                serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
+            }
+            else
+            {
+                // Use our own setting if API didn't provide a value
+                serviceFeePercentage = AppSettings.ServiceFeePercentage;
+                
+                // Calculate the additional payment based on our percentage
+                if (serviceFeePercentage > 0)
+                {
+                    order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
+                    order.TotalAmount = order.Amount + order.AdditinalPayment;
+                }
+            }
+
             // Jami summani yangilash
-            lblAmountValue.Text = $"{order.Amount:F1} UZS";
-            lblAdditinalPaymentValue.Text = $"{order.AdditinalPayment:F1} UZS";
-            lblTotalAmountValue.Text = $"{order.TotalAmount:F1} UZS";
+            lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} UZS";
+            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} UZS";
+            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} UZS";
 
             // To'lov usulini yangilash
             if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
@@ -1099,7 +1333,26 @@ namespace Restaurants.Classes
         public int ContractorId { get; set; }
         public int? NotCompletedOrderId { get; set; }
         public string OrderCountText { get; set; } = "0/0";
-        public string ResponsibleName { get; set; } = "Null";
+        public string ResponsibleName { get; set; } = "";
         public bool IsBusy { get; set; }
+    }
+
+    public class AdditionalPaymentResponse
+    {
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int Total { get; set; }
+        public List<AdditionalPayment> Rows { get; set; }
+    }
+
+    public class AdditionalPayment
+    {
+        public int Id { get; set; }
+        public string Code { get; set; }
+        public string ShortName { get; set; }
+        public string FullName { get; set; }
+        public int Percentage { get; set; }
+        public int StateId { get; set; }
+        public string State { get; set; }
     }
 }

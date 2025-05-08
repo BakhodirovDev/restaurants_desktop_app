@@ -4,6 +4,8 @@
         Title="Boxoro kafe" 
         WindowStartupLocation="CenterScreen" 
         WindowState="Maximized" 
+        WindowStyle="None"
+        ResizeMode="NoResize"
         Background="#F8F9FA"
         Loaded="Window_Loaded">
     <Window.Resources>
@@ -222,13 +224,13 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <Grid Margin="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="1*"/>
             <RowDefinition Height="1*"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Grid.RowSpan="2" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="12" 
+        <Border Grid.Row="0" Grid.RowSpan="2" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="0" 
                 Background="White" Effect="{StaticResource CardShadow}" Margin="0">
             <Grid Margin="25">
                 <Grid.RowDefinitions>
@@ -248,6 +250,8 @@
                         <TextBlock x:Name="lblRealTime" FontSize="22" FontWeight="Bold" Foreground="#212529" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="btnSettings" Content="Sozlamalar" Width="120" Height="40" Click="btnSettings_Click"
+                                Background="#2196F3" Style="{StaticResource ActionButtonStyle}" Margin="0,0,10,0"/>
                         <Button x:Name="btnLogout" Content="Chiqish" Width="100" Height="40" Click="btnLogout_Click"
                                 Background="#F44336" Style="{StaticResource ActionButtonStyle}"/>
                     </StackPanel>
@@ -263,21 +267,54 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Restoran" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
-                                <TextBlock x:Name="lblRestoranValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text="Null"/>
+                                <TextBlock x:Name="lblRestoranValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text=""/>
                                 <TextBlock Text="Ofitsiant" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
-                                <TextBlock x:Name="lblOfitsiantValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text="Null"/>
+                                <TextBlock x:Name="lblOfitsiantValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text=""/>
                             </StackPanel>
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Sana" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
-                                <TextBlock x:Name="lblSanaValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text="Null"/>
+                                <TextBlock x:Name="lblSanaValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text=""/>
                                 <TextBlock Text="Stol" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
-                                <TextBlock x:Name="lblStolValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text="Null"/>
+                                <TextBlock x:Name="lblStolValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text=""/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Vaqt" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
-                                <TextBlock x:Name="lblVaqtValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text="Null"/>
+                                <TextBlock x:Name="lblVaqtValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Margin="0,0,0,15" Text=""/>
                                 <TextBlock Text="Chek raqami" FontWeight="SemiBold" Foreground="#757575" Margin="0,0,0,5"/>
-                                <TextBlock x:Name="lblChekRaqamiValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text="Null"/>
+                                <TextBlock x:Name="lblChekRaqamiValue" FontSize="16" FontWeight="Medium" Foreground="#212529" Text=""/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Loading Overlay -->
+                    <Border x:Name="loadingOverlay" Background="#B0FFFFFF" CornerRadius="8" Visibility="Visible">
+                        <Grid>
+                            <Border Background="#80000000" CornerRadius="8" Margin="5">
+                                <Border.Effect>
+                                    <BlurEffect Radius="2" />
+                                </Border.Effect>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Border Width="80" Height="80" Background="White" CornerRadius="40" Effect="{StaticResource CardShadow}">
+                                    <Border.RenderTransform>
+                                        <RotateTransform x:Name="SpinnerRotate" CenterX="40" CenterY="40" />
+                                    </Border.RenderTransform>
+                                    <Border.Triggers>
+                                        <EventTrigger RoutedEvent="Border.Loaded">
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation 
+                                                        Storyboard.TargetName="SpinnerRotate" 
+                                                        Storyboard.TargetProperty="Angle" 
+                                                        From="0" To="360" Duration="0:0:1" 
+                                                        RepeatBehavior="Forever" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
+                                    </Border.Triggers>
+                                    <Path Data="M 30,40 A 10,10 0 1 1 50,40" Stroke="#2196F3" StrokeThickness="5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                </Border>
+                                <TextBlock Text="Ma'lumotlar yuklanmoqda..." Margin="0,20,0,0" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -291,7 +328,7 @@
                     <TextBlock Grid.Row="0" Text="Stollar" Style="{StaticResource HeaderTextStyle}" FontSize="16" Margin="0,0,0,10"/>
                     <ScrollViewer x:Name="tableScrollViewer" Grid.Row="1" 
                                   HorizontalScrollBarVisibility="Disabled" 
-                                  VerticalScrollBarVisibility="Auto" 
+                                  VerticalScrollBarVisibility="Hidden" 
                                   ScrollChanged="tableScrollViewer_ScrollChanged">
                         <WrapPanel x:Name="tablesPanel" Orientation="Horizontal" 
                                    Width="{Binding ActualWidth, ElementName=tableScrollViewer}"/>
@@ -389,12 +426,12 @@
                                                             </Border>
 
                                                             <Border Grid.Column="5" Padding="10">
-                                                                <TextBlock Text="{Binding EstimatedPrice}" Foreground="#757575" FontSize="14" 
+                                                                <TextBlock Text="{Binding FormattedEstimatedPrice}" Foreground="#757575" FontSize="14" 
                                                                            VerticalAlignment="Center" HorizontalAlignment="Right"/>
                                                             </Border>
 
                                                             <Border Grid.Column="6" Padding="10">
-                                                                <TextBlock Text="{Binding Amount}" Foreground="#2196F3" FontSize="14" FontWeight="Bold" 
+                                                                <TextBlock Text="{Binding FormattedAmount}" Foreground="#2196F3" FontSize="14" FontWeight="Bold" 
                                                                            VerticalAlignment="Center" HorizontalAlignment="Right"/>
                                                             </Border>
                                                         </Grid>

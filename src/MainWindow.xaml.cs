@@ -141,7 +141,8 @@ namespace Restaurants
                     }
                 else
                 {
-                    MessageBox.Show($"Login failed: {response.ReasonPhrase}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    PasswordBox.Clear();
+                    MessageBox.Show("Login yoki parol noto'g'ri", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (HttpRequestException ex)
@@ -152,6 +153,11 @@ namespace Restaurants
             {
                 MessageBox.Show($"Unexpected error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
         }
 
         private async Task<string> GetTokenAsync()
@@ -231,7 +237,7 @@ namespace Restaurants
 
             if (!string.IsNullOrEmpty(savedToken) && !string.IsNullOrEmpty(expireAt))
             {
-                // Parse the expiration time (assuming it’s a Unix timestamp or ISO date string)
+                // Parse the expiration time (assuming it's a Unix timestamp or ISO date string)
                 if (IsTokenValid(expireAt))
                 {
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", savedToken);
