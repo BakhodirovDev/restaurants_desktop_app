@@ -26,6 +26,8 @@ public class ContractorOrderTable
     public string ContractorRequirement { get; set; }
     public decimal EstimatedPrice { get; set; }
     public decimal Quantity { get; set; }
+    public decimal? DefectedQuantity { get; set; }
+    public decimal? DefectedAmount { get; set; }
     public decimal Amount { get; set; }
     public decimal SumInCurrency { get; set; }
     public string Details { get; set; }
@@ -34,4 +36,5 @@ public class ContractorOrderTable
     public bool IsForManReport { get; set; }
     public string ExpireDate { get; set; }
     public string Seria { get; set; }
+    public int? CtWarehouseId { get; set; }
 }

@@ -21,12 +21,15 @@ public class ContractorOrder
     public decimal TotalSumInCurrency { get; set; }
     public decimal AdditinalPayment { get; set; }
     public decimal? OrgCurrencyRate { get; set; }
+    public int? CtWarehouseId { get; set; }
     public string OrganizationAreasOfActivity { get; set; }
     public List<ContractorOrderTable>? Tables { get; set; }
     public List<AdditionalPayment> AdditionalPayments { get; set; }
     public int EstimatedPaymentTypeId { get; set; }
     public int TotalProductsCount { get; set; }
     public int CompletedProductsCount { get; set; }
+    public int SalePercent { get; set; }
+    public decimal SaleAmount { get; set; }
     public int Id { get; set; }
     public int StatusId { get; set; }
     public string DocNumber { get; set; }
@@ -42,7 +45,6 @@ public class ContractorOrder
     public int? CallPriorityId { get; set; }
     public int CurrencyId { get; set; }
     public int OrganizationAreasOfActivityId { get; set; }
-    public int? CtWarehouseId { get; set; }
     public int ContractorId { get; set; }
     public bool IsCreateManufacturingReport { get; set; }
     public string Details { get; set; }

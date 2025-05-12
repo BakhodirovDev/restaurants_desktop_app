@@ -15,6 +15,10 @@ namespace Restaurants.Pages
         public decimal DiscountAmount { get; private set; }
         public decimal TotalAmount { get; set; }
 
+        // For backend API parameters
+        public int SalePercent { get; private set; }
+        public decimal SaleAmount { get; private set; }
+
         public bool DiscountApplied { get; private set; }
 
         public DiscountSettings(decimal totalAmount, decimal currentDiscountAmount = 0, bool isPercentage = true)
@@ -116,6 +120,10 @@ namespace Restaurants.Pages
                 
                 DiscountPercentage = percentage;
                 DiscountAmount = TotalAmount * percentage / 100;
+                
+                // Set backend API parameters - ensure SalePercent is an integer
+                SalePercent = (int)Math.Round(percentage);
+                SaleAmount = 0;
             }
             else
             {
@@ -134,6 +142,10 @@ namespace Restaurants.Pages
                     MessageBox.Show("Chegirma jami summadan ko'p bo'lishi mumkin emas!", "Xato", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
+                
+                // Set backend API parameters
+                SalePercent = 0;
+                SaleAmount = amount;
             }
             
             DiscountApplied = true;
@@ -150,6 +162,8 @@ namespace Restaurants.Pages
             DiscountApplied = false;
             DiscountAmount = 0;
             DiscountPercentage = 0;
+            SalePercent = 0;
+            SaleAmount = 0;
             DialogResult = true;
         }
     }

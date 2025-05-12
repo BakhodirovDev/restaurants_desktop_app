@@ -9,6 +9,7 @@ using Restaurants.Helper;
 using Restaurants.Pages;
 using Restaurants.Pages.Windows;
 using Restaurants.Printer;
+using Restaurants.Services;
 using System.Drawing.Printing;
 using System.Globalization;
 using System.Net.Http;
@@ -32,6 +33,7 @@ namespace Restaurants.Classes
         private string currentSelectedTable = "-1"; // String sifatida boshlang'ich qiymat
         private readonly Dictionary<string, List<ContractorOrder>> tableOrders = new();
         private readonly XPrinter _printer;
+        private readonly OrderService _orderService;
         
         // Discount-related properties
         private decimal discountAmount = 0;
@@ -59,6 +61,7 @@ namespace Restaurants.Classes
 
             this.Loaded += Window_Loaded;
             _printer = printer;
+            _orderService = new OrderService(httpClient);
             
             // Set loading overlay to visible by default
             loadingOverlay.Visibility = Visibility.Visible;
@@ -336,36 +339,55 @@ namespace Restaurants.Classes
                 var order = orders.FirstOrDefault();
                 if (order != null)
                 {
-                    // Calculate service fee based on settings if API value is not available
+                    // Get service fee percentage from backend
                     int serviceFeePercentage = 0;
                     
                     if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
                     {
-                        // Use API value if available
                         serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
+                    }
+                    
+                    // Update discount values from the server response
+                    if (order.SalePercent > 0)
+                    {
+                        // If percentage discount is applied
+                        discountPercentage = order.SalePercent;
+                        discountAmount = order.SaleAmount;
+                        isDiscountPercentage = true;
+                    }
+                    else if (order.SaleAmount > 0)
+                    {
+                        // If amount discount is applied
+                        discountAmount = order.SaleAmount;
+                        discountPercentage = 0;
+                        isDiscountPercentage = false;
+                    }
+                    
+                    // Format currency with spaces instead of commas - use server values directly
+                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
+                    
+                    // Show service fee with percentage - use server values directly
+                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm ({serviceFeePercentage}%)";
+                    
+                    // Show discount - use server values directly
+                    if (order.SaleAmount > 0 || order.SalePercent > 0)
+                    {
+                        if (order.SalePercent > 0)
+                        {
+                            lblDiscountValue.Text = $"{AppSettings.FormatCurrency(order.SaleAmount)} so'm ({order.SalePercent}%)";
+                        }
+                        else
+                        {
+                            lblDiscountValue.Text = $"{AppSettings.FormatCurrency(order.SaleAmount)} so'm";
+                        }
                     }
                     else
                     {
-                        // Use our own setting if API didn't provide a value
-                        serviceFeePercentage = AppSettings.ServiceFeePercentage;
-                        
-                        // Calculate the additional payment based on our percentage
-                        if (serviceFeePercentage > 0)
-                        {
-                            order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
-                            order.TotalAmount = order.Amount + order.AdditinalPayment;
-                        }
+                        lblDiscountValue.Text = "0 so'm";
                     }
                     
-                    // Format currency with spaces instead of commas
-                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
-                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm";
-                    
-                    // Calculate total with discount
-                    decimal total = order.Amount + order.AdditinalPayment - discountAmount;
-                    if (total < 0) total = 0;
-                    
-                    lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(total)} so'm";
+                    // Show final amount from server
+                    lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} so'm";
                     
                     // To'lov turini ContractorOrder dan olish
                     if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
@@ -725,32 +747,15 @@ namespace Restaurants.Classes
 
         private PrintOrder CreatePrintOrder(ContractorOrder order)
         {
-            // Calculate service fee based on settings if API value is not available
+            // Get service fee percentage from backend
             int additionalPercentage = 0;
-            decimal serviceFee = order.AdditinalPayment;
-            decimal grandTotal = order.TotalAmount;
             
             if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
             {
-                // Use API value if available
                 additionalPercentage = order.AdditionalPayments[0].AdditionalPercentage;
             }
-            else
-            {
-                // Use our own setting if API didn't provide a value
-                additionalPercentage = AppSettings.ServiceFeePercentage;
-                
-                // Recalculate the service fee and total
-                if (additionalPercentage > 0)
-                {
-                    serviceFee = Math.Round(order.Amount * additionalPercentage / 100, 2);
-                }
-            }
             
-            // Include discount in total calculation
-            grandTotal = order.Amount + serviceFee - discountAmount;
-            if (grandTotal < 0) grandTotal = 0;
-        
+            // Use all values from the backend directly without recalculation
             return new PrintOrder
             {
                 TableNumber = currentSelectedTable,
@@ -773,12 +778,12 @@ namespace Restaurants.Classes
                     })
                     .Where(item => !string.IsNullOrEmpty(item.ProductShortName))
                     .ToList() ?? new List<OrderItem>(),
-                TotalAmount = Math.Round(order.Amount, 2),
-                ServiceFee = serviceFee,
-                DiscountAmount = discountAmount,
-                DiscountPercentage = discountPercentage,
-                IsDiscountPercentage = isDiscountPercentage,
-                GrandTotal = grandTotal,
+                TotalAmount = order.Amount,
+                ServiceFee = order.AdditinalPayment,
+                DiscountAmount = order.SaleAmount,
+                DiscountPercentage = order.SalePercent,
+                IsDiscountPercentage = order.SalePercent > 0,
+                GrandTotal = order.TotalAmount,
                 AdditionalPercentage = additionalPercentage,
                 PaymentTypeText = order.EstimatedPaymentType ?? "Naqd"
             };
@@ -1290,7 +1295,6 @@ namespace Restaurants.Classes
                 .ToList();
 
             // Faqat yangi elementlarni qo'shamiz
-            // (Bu joyda ID bilan taqqoslash kerak, lekin oddiylashtirish uchun shunday qoldiramiz)
             if (orderItems != null)
             {
                 foreach (var item in orderItems)
@@ -1302,30 +1306,56 @@ namespace Restaurants.Classes
                 }
             }
 
-            // Calculate service fee based on settings if API value is not available
+            // Get service fee percentage from backend
             int serviceFeePercentage = 0;
             
             if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
             {
-                // Use API value if available
                 serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
+            }
+
+            // Update discount values from the server response directly
+            if (order.SalePercent > 0)
+            {
+                discountPercentage = order.SalePercent;
+                discountAmount = order.SaleAmount;
+                isDiscountPercentage = true;
+            }
+            else if (order.SaleAmount > 0)
+            {
+                discountAmount = order.SaleAmount;
+                discountPercentage = 0;
+                isDiscountPercentage = false;
             }
             else
             {
-                // Use our own setting if API didn't provide a value
-                serviceFeePercentage = AppSettings.ServiceFeePercentage;
-                
-                // Calculate the additional payment based on our percentage
-                if (serviceFeePercentage > 0)
-                {
-                    order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
-                    order.TotalAmount = order.Amount + order.AdditinalPayment;
-                }
+                discountAmount = 0;
+                discountPercentage = 0;
+                isDiscountPercentage = true;
             }
 
-            // Jami summani yangilash
+            // Use backend values directly - no recalculation
             lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
-            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm";
+            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm ({serviceFeePercentage}%)";
+            
+            // Show discount from backend
+            if (order.SaleAmount > 0 || order.SalePercent > 0)
+            {
+                if (order.SalePercent > 0)
+                {
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(order.SaleAmount)} so'm ({order.SalePercent}%)";
+                }
+                else
+                {
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(order.SaleAmount)} so'm";
+                }
+            }
+            else
+            {
+                lblDiscountValue.Text = "0 so'm";
+            }
+            
+            // Show final amount from server
             lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} so'm";
 
             // To'lov usulini yangilash
@@ -1349,7 +1379,7 @@ namespace Restaurants.Classes
             UpdateButtonStates();
         }
 
-        private void btnChangeDiscount_Click(object sender, RoutedEventArgs e)
+        private async void btnChangeDiscount_Click(object sender, RoutedEventArgs e)
         {
             // Agar stol tanlanmagan bo'lsa, xabar chiqaramiz
             if (string.IsNullOrEmpty(currentSelectedTable) || currentSelectedTable == "-1")
@@ -1416,32 +1446,197 @@ namespace Restaurants.Classes
                 
                 if (result == true)
                 {
-                    if (discountWindow.DiscountApplied)
+                    try
                     {
-                        // Save the discount settings
-                        discountAmount = discountWindow.DiscountAmount;
-                        isDiscountPercentage = discountWindow.IsPercentage;
-                        discountPercentage = discountWindow.DiscountPercentage;
+                        // Show loading overlay during API operation
+                        loadingOverlay.Visibility = Visibility.Visible;
                         
-                        // Update the UI with discount
-                        lblDiscountValue.Text = $"{AppSettings.FormatCurrency(discountAmount)} so'm";
+                        // Get current token for API request
+                        string token = await EnsureValidTokenAsync();
+                        if (string.IsNullOrEmpty(token))
+                        {
+                            loadingOverlay.Visibility = Visibility.Collapsed;
+                            MessageBox.Show("Avtorizatsiya xatoligi. Iltimos, qayta kiring.", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                        }
+                        
+                        if (discountWindow.DiscountApplied)
+                        {
+                            // Save the discount settings locally
+                            discountAmount = discountWindow.DiscountAmount;
+                            isDiscountPercentage = discountWindow.IsPercentage;
+                            discountPercentage = discountWindow.DiscountPercentage;
+                            
+                            // Send discount to backend
+                            var updatedOrder = await ApplyDiscountToOrder(
+                                order,
+                                discountWindow.SalePercent, 
+                                discountWindow.SaleAmount,
+                                token);
+                                
+                            if (updatedOrder != null)
+                            {
+                                // Replace the current order with the updated one from backend
+                                int index = tableOrders[currentSelectedTable].IndexOf(order);
+                                if (index >= 0)
+                                {
+                                    tableOrders[currentSelectedTable][index] = updatedOrder;
+                                }
+                                
+                                // Update UI
+                                LoadTableOrders(currentSelectedTable);
+                                lblDiscountValue.Text = $"{AppSettings.FormatCurrency(discountAmount)} so'm";
+                                MessageBox.Show("Chegirma muvaffaqiyatli saqlandi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                // If API call failed, still update UI with local discount values
+                                lblDiscountValue.Text = $"{AppSettings.FormatCurrency(discountAmount)} so'm";
+                                UpdateTotalWithDiscount();
+                            }
+                        }
+                        else
+                        {
+                            // Reset discount on backend
+                            var updatedOrder = await ApplyDiscountToOrder(order, 0, 0, token);
+                            
+                            if (updatedOrder != null)
+                            {
+                                // Replace the current order with the updated one from backend
+                                int index = tableOrders[currentSelectedTable].IndexOf(order);
+                                if (index >= 0)
+                                {
+                                    tableOrders[currentSelectedTable][index] = updatedOrder;
+                                }
+                                
+                                // Reset discount if user clicked reset
+                                discountAmount = 0;
+                                isDiscountPercentage = true;
+                                discountPercentage = 0;
+                                lblDiscountValue.Text = "0 so'm";
+                                
+                                // Update UI
+                                LoadTableOrders(currentSelectedTable);
+                                MessageBox.Show("Chegirma bekor qilindi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                // If API call failed, still reset local discount values
+                                discountAmount = 0;
+                                isDiscountPercentage = true;
+                                discountPercentage = 0;
+                                lblDiscountValue.Text = "0 so'm";
+                                UpdateTotalWithDiscount();
+                            }
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        // Reset discount if user clicked reset
-                        discountAmount = 0;
-                        isDiscountPercentage = true;
-                        discountPercentage = 0;
-                        lblDiscountValue.Text = "0 so'm";
+                        MessageBox.Show($"Chegirmani saqlashda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
-                    
-                    // Update the total amount with discount applied
-                    UpdateTotalWithDiscount();
+                    finally
+                    {
+                        // Hide loading overlay
+                        loadingOverlay.Visibility = Visibility.Collapsed;
+                    }
                 }
             }
             catch (Exception ex)
             {
+                // Hide loading in case of error
+                loadingOverlay.Visibility = Visibility.Collapsed;
                 MessageBox.Show($"Chegirma sozlashda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        private async Task<ContractorOrder> ApplyDiscountToOrder(ContractorOrder order, decimal salePercent, decimal saleAmount, string token)
+        {
+            try
+            {
+                // Create a copy of the current order to update with discount
+                var orderToUpdate = new
+                {
+                    id = order.Id,
+                    statusId = order.StatusId,
+                    docNumber = order.DocNumber,
+                    docDate = order.DocDate,
+                    docTime = order.DocTime,
+                    firstContactId = order.FirstContactId,
+                    contact = order.Contact,
+                    clientName = order.ClientName,
+                    startDate = order.StartDate,
+                    estimatedEndDate = order.EstimatedEndDate,
+                    endDate = order.EndDate,
+                    estimatedPaymentTypeId = order.EstimatedPaymentTypeId,
+                    responsibleId = order.ResponsibleId,
+                    currencyId = order.CurrencyId,
+                    isForManReport = order.IsForManReport,
+                    organizationAreasOfActivityId = order.OrganizationAreasOfActivityId,
+                    ctWarehouseId = order.CtWarehouseId,
+                    contractorId = order.ContractorId,
+                    isCreateManufacturingReport = order.IsCreateManufacturingReport,
+                    details = order.Details,
+                    salePercent = (int)Math.Round(salePercent),
+                    saleAmount = saleAmount,
+                    // Keep existing items
+                    tables = order.Tables?.Select(t => new
+                    {
+                        id = t.Id,
+                        orderNumber = t.OrderNumber,
+                        productId = t.ProductId,
+                        contractorRequirement = t.ContractorRequirement,
+                        estimatedPrice = t.EstimatedPrice,
+                        quantity = t.Quantity,
+                        defectedQuantity = t.DefectedQuantity,
+                        amount = t.Amount,
+                        defectedAmount = t.DefectedAmount,
+                        details = t.Details,
+                        responsibleId = t.ResponsibleId,
+                        ctWarehouseId = t.CtWarehouseId
+                    }).ToList(),
+                    additionalPayments = order.AdditionalPayments?.Select(p => new
+                    {
+                        id = p.Id,
+                        orderNumber = p.OrderNumber,
+                        additionalPaymentId = p.AdditionalPaymentId,
+                        amount = p.Amount,
+                        details = p.Details
+                    }).ToList()
+                };
+
+                // Send API request to update order with discount
+                using (HttpClient client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                    client.DefaultRequestHeaders.Add("accept", "*/*");
+
+                    var content = new StringContent(
+                        JsonConvert.SerializeObject(orderToUpdate),
+                        Encoding.UTF8,
+                        "application/json-patch+json");
+
+                    HttpResponseMessage response = await client.PostAsync(
+                        "https://crm-api.webase.uz/crm/ContractorOrder/Update",
+                        content);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string jsonResponse = await response.Content.ReadAsStringAsync();
+                        var updatedOrder = JsonConvert.DeserializeObject<ContractorOrder>(jsonResponse);
+                        return updatedOrder;
+                    }
+                    else
+                    {
+                        // Handle error response
+                        string errorResponse = await response.Content.ReadAsStringAsync();
+                        throw new HttpRequestException($"API error: {response.StatusCode}\n{errorResponse}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Chegirmani saqlashda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
             }
         }
 
@@ -1461,18 +1656,39 @@ namespace Restaurants.Classes
             decimal subtotal = order.Amount;
             decimal serviceFee = order.AdditinalPayment;
             
-            // Apply discount
-            decimal total = subtotal + serviceFee - discountAmount;
+            // Get service fee percentage
+            int serviceFeePercentage = 0;
+            if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
+            {
+                serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
+            }
             
-            // Ensure total is not negative
-            if (total < 0)
-                total = 0;
-                
-            // Update the UI
-            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(total)} so'm";
+            // Update UI display
+            lblAmountValue.Text = $"{AppSettings.FormatCurrency(subtotal)} so'm";
+            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(serviceFee)} so'm ({serviceFeePercentage}%)";
+            
+            // Show discount if any
+            if (discountAmount > 0)
+            {
+                if (isDiscountPercentage)
+                {
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(discountAmount)} so'm ({discountPercentage}%)";
+                }
+                else
+                {
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(discountAmount)} so'm";
+                }
+            }
+            else
+            {
+                lblDiscountValue.Text = "0 so'm";
+            }
+            
+            // Use total amount from server if available, otherwise calculate
+            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} so'm";
         }
 
-        private void btnRemoveDefectItem_Click(object sender, RoutedEventArgs e)
+        private async void btnRemoveDefectItem_Click(object sender, RoutedEventArgs e)
         {
             // Get the item ID from the button's tag
             if (sender is Button button && button.Tag != null)
@@ -1688,101 +1904,70 @@ namespace Restaurants.Classes
                             return;
                     }
 
-                    if (removeEntireItem)
+                    // Show loading overlay while processing
+                    loadingOverlay.Visibility = Visibility.Visible;
+
+                    try
                     {
-                        // Remove the entire item
-                        decimal itemAmount = item.Amount;
-                        order.Amount -= itemAmount;
-                        
-                        // Remove the item from the tables list
-                        order.Tables.Remove(item);
-                        
-                        // Remove the item from the ListView
-                        OrderItem itemToRemove = null;
-                        foreach (OrderItem orderItem in lvItems.Items)
+                        // Get current token for API request
+                        string token = await EnsureValidTokenAsync();
+                        if (string.IsNullOrEmpty(token))
                         {
-                            if (orderItem.Id == itemId)
+                            loadingOverlay.Visibility = Visibility.Collapsed;
+                            MessageBox.Show("Avtorizatsiya xatoligi. Iltimos, qayta kiring.", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                        }
+
+                        // Use the Order Service to update the order
+                        var updatedOrder = await _orderService.MarkProductAsDefectiveAsync(
+                            order, 
+                            itemId, 
+                            defectiveQuantity, 
+                            token);
+
+                        // Update local state
+                        if (updatedOrder != null)
+                        {
+                            // Replace the current order with the updated one
+                            int index = tableOrders[currentSelectedTable].IndexOf(order);
+                            if (index >= 0)
                             {
-                                itemToRemove = orderItem;
-                                break;
+                                tableOrders[currentSelectedTable][index] = updatedOrder;
+                            }
+
+                            // Update UI to reflect changes
+                            LoadTableOrders(currentSelectedTable);
+                            
+                            // Immediately refresh the tables display to ensure it's up-to-date
+                            await LoadTablesAsync();
+                            
+                            // Force a complete refresh of the data from the server
+                            await GetData();
+
+                            if (removeEntireItem)
+                            {
+                                MessageBox.Show("Mahsulot yaroqsiz sifatida chiqarildi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                MessageBox.Show($"{defectiveQuantity} ta mahsulot yaroqsiz sifatida belgilandi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
                             }
                         }
-                        
-                        if (itemToRemove != null)
-                        {
-                            lvItems.Items.Remove(itemToRemove);
-                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        // Calculate the amount for defective items
-                        decimal singleItemPrice = item.EstimatedPrice;
-                        decimal defectiveAmount = singleItemPrice * defectiveQuantity;
-                        
-                        // Update the order amount
-                        order.Amount -= defectiveAmount;
-                        
-                        // Update the item quantity and amount
-                        item.Quantity -= defectiveQuantity;
-                        item.Amount = item.EstimatedPrice * item.Quantity;
-                        
-                        // Update the ListView item
-                        foreach (OrderItem orderItem in lvItems.Items)
-                        {
-                            if (orderItem.Id == itemId)
-                            {
-                                orderItem.Quantity -= defectiveQuantity;
-                                orderItem.Amount = orderItem.EstimatedPrice * orderItem.Quantity;
-                                break;
-                            }
-                        }
+                        MessageBox.Show($"API so'rovi yuborishda xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
-                    
-                    // Recalculate service fee if applicable
-                    if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
+                    finally
                     {
-                        int serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
-                        order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
-                    }
-                    else
-                    {
-                        // Use our own setting if API didn't provide a value
-                        int serviceFeePercentage = AppSettings.ServiceFeePercentage;
-                        
-                        // Calculate the additional payment based on our percentage
-                        if (serviceFeePercentage > 0)
-                        {
-                            order.AdditinalPayment = order.Amount * serviceFeePercentage / 100;
-                        }
-                    }
-                    
-                    // Update total amount
-                    order.TotalAmount = order.Amount + order.AdditinalPayment - discountAmount;
-                    
-                    // Renumber remaining items
-                    int index = 1;
-                    foreach (OrderItem orderItem in lvItems.Items)
-                    {
-                        orderItem.Index = index++;
-                    }
-                    
-                    // Update the UI
-                    lvItems.Items.Refresh();
-                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
-                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm";
-                    UpdateTotalWithDiscount();
-                    
-                    if (removeEntireItem)
-                    {
-                        MessageBox.Show("Mahsulot yaroqsiz sifatida chiqarildi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else 
-                    {
-                        MessageBox.Show($"{defectiveQuantity} ta mahsulot yaroqsiz sifatida belgilandi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
+                        // Hide loading overlay
+                        loadingOverlay.Visibility = Visibility.Collapsed;
                     }
                 }
                 catch (Exception ex)
                 {
+                    // Hide loading in case of error
+                    loadingOverlay.Visibility = Visibility.Collapsed;
                     MessageBox.Show($"Xatolik yuz berdi: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
