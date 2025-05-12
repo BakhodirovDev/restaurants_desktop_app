@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
+using Restaurants.Classes;
 
 namespace Restaurants.Pages.Windows
 {
@@ -92,7 +93,7 @@ namespace Restaurants.Pages.Windows
             }
         }
         
-        private async Task<bool> UpdateServiceFeePercentageAsync(int percentage)
+        async Task<bool> UpdateServiceFeePercentageAsync(int percentage)
         {
             try
             {
@@ -103,39 +104,102 @@ namespace Restaurants.Pages.Windows
                     MessageBox.Show("Authentication token not found. Please login again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     return false;
                 }
-                
-                // Create API request data
-                var requestData = new
-                {
-                    percentage = percentage,
-                    amount = 0,
-                    isAutoAdd = true,
-                    code = "service_fee",
-                    shortName = "Xizmat haqi",
-                    fullName = "Xizmat haqi"
-                };
-                
-                // Create HTTP client and set headers
+
                 using (HttpClient client = new HttpClient())
                 {
+                    // Set headers
                     client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
                     client.DefaultRequestHeaders.Add("accept", "text/plain");
-                    
-                    // Convert request data to JSON
-                    string jsonRequest = JsonConvert.SerializeObject(requestData);
-                    var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json-patch+json");
-                    
-                    // Send the request
-                    HttpResponseMessage response = await client.PostAsync("https://crm-api.webase.uz/crm/AdditionalPayment/Create", content);
-                    
-                    // Return true if successful
-                    return response.IsSuccessStatusCode;
+
+                    // First get current service fee
+                    var requestData = new
+                    {
+                        search = (string)null,
+                        sortBy = "id",
+                        orderType = "DESC",
+                        page = 0,
+                        pageSize = 0
+                    };
+
+                    var content = new StringContent(JsonConvert.SerializeObject(requestData), Encoding.UTF8, "application/json");
+                    HttpResponseMessage response = await client.PostAsync("https://crm-api.webase.uz/crm/AdditionalPayment/GetList", content);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string jsonResponse = await response.Content.ReadAsStringAsync();
+                        var result = JsonConvert.DeserializeObject<AdditionalPaymentResponse>(jsonResponse);
+
+                        if (result != null && result.Rows != null && result.Rows.Count > 0)
+                        {
+                            // Get first row as requested
+                            var firstPayment = result.Rows[0];
+
+                            // Delete existing service fee before updating
+                            await DeleteExistingServiceFee(firstPayment.Id, token);
+
+                            // Now create a new service fee with the new percentage
+                            var newServiceFee = new
+                            {
+                                code = firstPayment.Code,
+                                shortName = firstPayment.ShortName,
+                                fullName = firstPayment.FullName,
+                                percentage = percentage
+                            };
+
+                            var createContent = new StringContent(JsonConvert.SerializeObject(newServiceFee), Encoding.UTF8, "application/json");
+
+                            // Create new service fee
+                            HttpResponseMessage createResponse = await client.PostAsync("https://crm-api.webase.uz/crm/AdditionalPayment/Create", createContent);
+
+                            if (createResponse.IsSuccessStatusCode)
+                            {
+                                // Update local settings
+                                AppSettings.ServiceFeePercentage = percentage;
+                                return true;
+                            }
+                            else
+                            {
+                                string errorContent = await createResponse.Content.ReadAsStringAsync();
+                                return false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        string errorResponse = await response.Content.ReadAsStringAsync();
+                        return false;
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating service fee: {ex.Message}");
                 return false;
+            }
+
+            return false;
+        }
+
+        private async Task DeleteExistingServiceFee(int id, string token)
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    // Set headers
+                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                    client.DefaultRequestHeaders.Add("accept", "text/plain");
+
+                    // Send delete request
+                    HttpResponseMessage response = await client.DeleteAsync($"https://crm-api.webase.uz/crm/AdditionalPayment/Delete/{id}");
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        string errorResponse = await response.Content.ReadAsStringAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
             }
         }
     }
