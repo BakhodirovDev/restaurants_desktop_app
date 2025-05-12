@@ -28,8 +28,6 @@ public class ContractorOrder
     public int EstimatedPaymentTypeId { get; set; }
     public int TotalProductsCount { get; set; }
     public int CompletedProductsCount { get; set; }
-    public int SalePercent { get; set; }
-    public decimal SaleAmount { get; set; }
     public int Id { get; set; }
     public int StatusId { get; set; }
     public string DocNumber { get; set; }
@@ -49,4 +47,7 @@ public class ContractorOrder
     public bool IsCreateManufacturingReport { get; set; }
     public string Details { get; set; }
     public string LocationUrl { get; set; }
+    public string AdditionalQuantity { get; set; }
+    public int SalePercent { get; set; }
+    public decimal SaleAmount { get; set; }
 }

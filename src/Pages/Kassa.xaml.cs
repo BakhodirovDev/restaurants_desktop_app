@@ -14,6 +14,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Globalization;
+using System.Windows.Data;
 
 namespace Restaurants.Classes
 {
@@ -49,7 +51,7 @@ namespace Restaurants.Classes
             timeTimer.Start();
 
             timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromSeconds(1);
+            timer.Interval = TimeSpan.FromSeconds(3);
             timer.Tick += Timer_Tick;
 
             this.Loaded += Window_Loaded;
@@ -132,10 +134,29 @@ namespace Restaurants.Classes
         {
             try
             {
+                // Get the latest table data from the server
                 var data = await GetTablesList();
                 if (data?.Rows != null)
                 {
+                    // Generate updated table buttons with latest server data
                     GenerateTableButtons(data.Rows);
+                    
+                    // Update currently selected table to ensure its display is up-to-date
+                    if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
+                    {
+                        // Find the selected button and update its visual state
+                        foreach (Button btn in tablesPanel.Children)
+                        {
+                            if (btn.Tag is TableButtonData btnData && btnData.TableNumber == currentSelectedTable)
+                            {
+                                bool btnIsBusy = tableOrders.TryGetValue(btnData.TableNumber, out var orders) &&
+                                              orders != null &&
+                                              orders.Any(o => o.StatusId != 3);
+                                ApplyTableStyle(btn, btnIsBusy, true);
+                                break;
+                            }
+                        }
+                    }
                 }
             }
             catch (HttpRequestException ex)
@@ -294,13 +315,17 @@ namespace Restaurants.Classes
                 return;
             }
 
-            // Update the responsible person name if available
+            // Always get the first order for consistency
             var firstOrder = orders.FirstOrDefault();
-            if (firstOrder != null && !string.IsNullOrEmpty(firstOrder.Responsible))
+            if (firstOrder == null) return;
+            
+            // Update the responsible person name if available
+            if (!string.IsNullOrEmpty(firstOrder.Responsible))
             {
                 lblOfitsiantValue.Text = firstOrder.Responsible;
             }
 
+            // Get all valid order items
             var orderItems = orders
                 .SelectMany(o => o.Tables ?? new List<ContractorOrderTable>())
                 .Where(t => t != null && !string.IsNullOrEmpty(t.ProductShortName))
@@ -317,103 +342,94 @@ namespace Restaurants.Classes
                 })
                 .ToList();
 
-            if (!orderItems.Any())
-            {
-                Console.WriteLine($"No valid order items for table {tableNumber}");
-            }
-
+            // Add all items to the list view
             foreach (var item in orderItems)
             {
                 lvItems.Items.Add(item);
             }
 
-            if (orders.Any())
+            // Get service fee percentage from backend
+            int serviceFeePercentage = 0;
+            
+            if (firstOrder.AdditionalPayments != null && firstOrder.AdditionalPayments.Count > 0)
             {
-                var order = orders.FirstOrDefault();
-                if (order != null)
+                serviceFeePercentage = firstOrder.AdditionalPayments[0].AdditionalPercentage;
+                // Update the global service fee percentage
+                AppSettings.ServiceFeePercentage = serviceFeePercentage;
+            }
+            
+            // Update discount values from the server response
+            if (firstOrder.SalePercent > 0)
+            {
+                // If percentage discount is applied
+                discountPercentage = firstOrder.SalePercent;
+                discountAmount = firstOrder.SaleAmount;
+                isDiscountPercentage = true;
+            }
+            else if (firstOrder.SaleAmount > 0)
+            {
+                // If amount discount is applied
+                discountAmount = firstOrder.SaleAmount;
+                discountPercentage = 0;
+                isDiscountPercentage = false;
+            }
+            
+            // Format currency with spaces instead of commas - use server values directly
+            lblAmountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.Amount)} so'm";
+            
+            // Show service fee with percentage - use server values directly
+            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(firstOrder.AdditinalPayment)} so'm ({serviceFeePercentage}%)";
+            
+            // Show discount - use server values directly
+            if (firstOrder.SaleAmount > 0 || firstOrder.SalePercent > 0)
+            {
+                if (firstOrder.SalePercent > 0)
                 {
-                    // Get service fee percentage from backend
-                    int serviceFeePercentage = 0;
-                    
-                    if (order.AdditionalPayments != null && order.AdditionalPayments.Count > 0)
-                    {
-                        serviceFeePercentage = order.AdditionalPayments[0].AdditionalPercentage;
-                    }
-                    
-                    // Update discount values from the server response
-                    if (order.SalePercent > 0)
-                    {
-                        // If percentage discount is applied
-                        discountPercentage = order.SalePercent;
-                        discountAmount = order.SaleAmount;
-                        isDiscountPercentage = true;
-                    }
-                    else if (order.SaleAmount > 0)
-                    {
-                        // If amount discount is applied
-                        discountAmount = order.SaleAmount;
-                        discountPercentage = 0;
-                        isDiscountPercentage = false;
-                    }
-                    
-                    // Format currency with spaces instead of commas - use server values directly
-                    lblAmountValue.Text = $"{AppSettings.FormatCurrency(order.Amount)} so'm";
-                    
-                    // Show service fee with percentage - use server values directly
-                    lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(order.AdditinalPayment)} so'm ({serviceFeePercentage}%)";
-                    
-                    // Show discount - use server values directly
-                    if (order.SaleAmount > 0 || order.SalePercent > 0)
-                    {
-                        if (order.SalePercent > 0)
-                        {
-                            lblDiscountValue.Text = $"{AppSettings.FormatCurrency(order.SaleAmount)} so'm ({order.SalePercent}%)";
-                        }
-                        else
-                        {
-                            lblDiscountValue.Text = $"{AppSettings.FormatCurrency(order.SaleAmount)} so'm";
-                        }
-                    }
-                    else
-                    {
-                        lblDiscountValue.Text = "0 so'm";
-                    }
-                    
-                    // Show final amount from server
-                    lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} so'm";
-                    
-                    // To'lov turini ContractorOrder dan olish
-                    if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
-                    {
-                        lblPaymentMethod.Text = order.EstimatedPaymentType;
-                        lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
-                        PaymentMethodBorder.Background = new LinearGradientBrush
-                        {
-                            StartPoint = new Point(0, 0),
-                            EndPoint = new Point(1, 1),
-                            GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(System.Windows.Media.Color.FromRgb(200, 230, 201), 0),
-                        new GradientStop(System.Windows.Media.Color.FromRgb(165, 214, 167), 1)
-                    }
-                        };
-                    }
-                    else
-                    {
-                        lblPaymentMethod.Text = "Tanlanmagan";
-                        lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
-                        PaymentMethodBorder.Background = new LinearGradientBrush
-                        {
-                            StartPoint = new Point(0, 0),
-                            EndPoint = new Point(1, 1),
-                            GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(System.Windows.Media.Color.FromRgb(255, 235, 238), 0),
-                        new GradientStop(System.Windows.Media.Color.FromRgb(255, 205, 210), 1)
-                    }
-                        };
-                    }
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.SaleAmount)} so'm ({firstOrder.SalePercent}%)";
                 }
+                else
+                {
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.SaleAmount)} so'm";
+                }
+            }
+            else
+            {
+                lblDiscountValue.Text = "0 so'm";
+            }
+            
+            // Show final amount from server
+            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.TotalAmount)} so'm";
+            
+            // To'lov turini ContractorOrder dan olish
+            if (!string.IsNullOrEmpty(firstOrder.EstimatedPaymentType))
+            {
+                lblPaymentMethod.Text = firstOrder.EstimatedPaymentType;
+                lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
+                PaymentMethodBorder.Background = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection
+            {
+                new GradientStop(System.Windows.Media.Color.FromRgb(200, 230, 201), 0),
+                new GradientStop(System.Windows.Media.Color.FromRgb(165, 214, 167), 1)
+            }
+                };
+            }
+            else
+            {
+                lblPaymentMethod.Text = "Tanlanmagan";
+                lblPaymentMethod.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+                PaymentMethodBorder.Background = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection
+            {
+                new GradientStop(System.Windows.Media.Color.FromRgb(255, 235, 238), 0),
+                new GradientStop(System.Windows.Media.Color.FromRgb(255, 205, 210), 1)
+            }
+                };
             }
 
             lvItems.Items.Refresh();
@@ -472,9 +488,13 @@ namespace Restaurants.Classes
 
         private void ProcessApiData(ContractorOrder data)
         {
-            if (data == null || data.Tables == null || !data.Tables.Any()) return;
+            if (data == null) return;
 
-            foreach (var table in data.Tables.Where(t => t != null))
+            // Clear existing tables data to ensure complete refresh
+            tableOrders.Clear();
+            
+            // Process each table in the order
+            foreach (var table in data.Tables ?? new List<ContractorOrderTable>())
             {
                 string tableNumber = table.OrderNumber.ToString();
                 if (string.IsNullOrEmpty(tableNumber)) continue;
@@ -484,20 +504,14 @@ namespace Restaurants.Classes
                     tableOrders[tableNumber] = new List<ContractorOrder>();
                 }
 
-                var existingOrder = tableOrders[tableNumber].FirstOrDefault(o => o.Id == data.Id);
-                if (existingOrder != null)
-                {
-                    int index = tableOrders[tableNumber].IndexOf(existingOrder);
-                    tableOrders[tableNumber][index] = data;
-                }
-                else
-                {
-                    tableOrders[tableNumber].Add(data);
-                }
+                // Always add the latest data 
+                tableOrders[tableNumber].Add(data);
 
+                // Update the table button UI
                 UpdateTableButtonStyle(tableNumber, data);
             }
 
+            // Update UI for currently selected table
             if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
             {
                 LoadTableOrders(currentSelectedTable);
@@ -610,17 +624,19 @@ namespace Restaurants.Classes
         private async Task SmoothAutoRefresh()
         {
             try {
-                // Fetch and update service fee percentage
-                await UpdateServiceFeePercentageFromApi();
+                // Foydalanuvchiga bilinmasdan, orqa fonda ma'lumotlarni yangilash
                 
-                // Yangi ma'lumotlarni ol, ammo mavjud ma'lumotlarni tozalamasdan
+                // Fetch and update service fee percentage without UI updates
+                await UpdateServiceFeePercentageFromApi(false);
+                
+                // Yangi ma'lumotlarni olib, lekin UI ni tozalamay yangilash
                 var data1 = await ContractorOrderGet();
                 if (data1 == null) return;
 
-                // Yangilangan ma'lumotlarni qo'sh, ammo mavjudlarini o'chirmasdan
-                ProcessApiDataWithoutClearing(data1);
+                // Mavjud ma'lumotlarni foydalanuvchiga bilintirmasdan yangilash
+                ProcessApiDataSilently(data1);
                 
-                // Tanlangan stol uchun ma'lumotlarni yangilab, UI ni tahrirla
+                // Tanlangan stol uchun ma'lumotlarni foydalanuvchiga bilintirmasdan yangilash
                 if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
                 {
                     var selectedButton = tablesPanel.Children.OfType<Button>()
@@ -628,20 +644,305 @@ namespace Restaurants.Classes
                     
                     if (selectedButton != null && selectedButton.Tag is TableButtonData btnData && btnData.NotCompletedOrderId.HasValue)
                     {
-                        // Faqat yangi ma'lumotlarni pastdan qo'shib yangilash
-                        await UpdateExistingTableData(btnData.NotCompletedOrderId.Value);
+                        // Get fresh data for the selected table
+                        var refreshedOrder = await ContractorOrderGetById(btnData.NotCompletedOrderId.Value);
+                        if (refreshedOrder != null)
+                        {
+                            // Process the refreshed data without flickering
+                            ProcessTableDataSilently(refreshedOrder);
+                        }
                     }
                 }
 
-                // Stol ma'lumotlarini yangilash
-                await LoadTablesAsync();
+                // Stol ma'lumotlarini yangilash (faqat kerakli qismlarini)
+                await UpdateTablesQuietly();
+                
+                // Update button states without UI flickering
+                UpdateButtonStatesSilently();
             }
             catch (Exception ex) {
                 Console.WriteLine($"Silent auto refresh error: {ex.Message}");
             }
         }
-        
-        private async Task UpdateServiceFeePercentageFromApi()
+
+        // Yangi method: Orqa fonda stollarni yangilash, lipillamay
+        private async Task UpdateTablesQuietly()
+        {
+            try
+            {
+                var data = await GetTablesList();
+                if (data?.Rows == null) return;
+
+                // Stol tugmachalari asosiy parametrlarini faqat (band/bo'sh holati) yangilash
+                foreach (var table in data.Rows)
+                {
+                    string tableName = table.FirstName;
+                    bool isBusy = table.HasNotCompletedOrder;
+                    int? notCompletedOrderId = table.NotCompletedOrderId;
+
+                    foreach (Button btn in tablesPanel.Children)
+                    {
+                        if (btn.Tag is TableButtonData btnData && btnData.TableNumber == tableName)
+                        {
+                            // Tugmacha status/data ni yangilash
+                            btnData.NotCompletedOrderId = notCompletedOrderId;
+                            btnData.IsBusy = isBusy;
+
+                            if (tableOrders.TryGetValue(tableName, out var orders) && orders != null && orders.Any())
+                            {
+                                var order = orders.FirstOrDefault();
+                                if (order != null)
+                                {
+                                    int productsCount = order.TotalProductsCount;
+                                    int completedProductsCount = order.CompletedProductsCount;
+                                    btnData.OrderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
+                                }
+                            }
+
+                            btn.Tag = btnData;
+
+                            // Faqat tanlangan stol bo'lmaganlarga style qo'llash
+                            if (tableName != currentSelectedTable)
+                            {
+                                ApplyTableStyle(btn, isBusy, false);
+                            }
+                            
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateTablesQuietly error: {ex.Message}");
+            }
+        }
+
+        // Yangi method: Orqa fonda ma'lumotlarni yangilash, UI ga ta'sir qilmay
+        private void ProcessApiDataSilently(ContractorOrder data)
+        {
+            if (data == null) return;
+            
+            // Process each table in the order
+            foreach (var table in data.Tables ?? new List<ContractorOrderTable>())
+            {
+                string tableNumber = table.OrderNumber.ToString();
+                if (string.IsNullOrEmpty(tableNumber)) continue;
+
+                if (!tableOrders.ContainsKey(tableNumber))
+                {
+                    tableOrders[tableNumber] = new List<ContractorOrder>();
+                }
+
+                var existingOrder = tableOrders[tableNumber].FirstOrDefault(o => o.Id == data.Id);
+                if (existingOrder != null)
+                {
+                    // Mavjud buyurtmani yangilash
+                    int index = tableOrders[tableNumber].IndexOf(existingOrder);
+                    tableOrders[tableNumber][index] = data;
+                }
+                else
+                {
+                    // Yangi buyurtma qo'shish
+                    tableOrders[tableNumber].Add(data);
+                }
+
+                // Update the table button UI silently
+                UpdateTableButtonStyleSilently(tableNumber, data);
+            }
+
+            // Agar joriy tanlangan stol bo'lsa, UI ni yangilash
+            if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
+            {
+                if (tableOrders.ContainsKey(currentSelectedTable) && tableOrders[currentSelectedTable].Any())
+                {
+                    UpdateUIWithoutFlickering(currentSelectedTable);
+                }
+            }
+        }
+
+        // Yangi method: Tugmacha stilini lippillamay yangilash
+        private void UpdateTableButtonStyleSilently(string tableNumber, ContractorOrder order)
+        {
+            foreach (Button btn in tablesPanel.Children)
+            {
+                if (btn.Tag is not TableButtonData tagData || tagData.TableNumber != tableNumber) continue;
+
+                int productsCount = order.TotalProductsCount;
+                int completedProductsCount = order.CompletedProductsCount;
+                bool isBusy = productsCount > 0 && (order.StatusId != 3);
+
+                // Tegni sekin yangilash
+                tagData.OrderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
+                tagData.IsBusy = isBusy;
+                btn.Tag = tagData;
+
+                // Faqat tanlangan stol bo'lmaganlarga style qo'llash
+                if (tableNumber != currentSelectedTable)
+                {
+                    ApplyTableStyle(btn, isBusy, false);
+                }
+                
+                break;
+            }
+        }
+
+        // Yangi method: Stol ma'lumotlarini lippillamay yangilash
+        private void ProcessTableDataSilently(ContractorOrder data)
+        {
+            if (data == null) data = new ContractorOrder();
+
+            string tableNumber = currentSelectedTable;
+
+            if (!tableOrders.ContainsKey(tableNumber))
+            {
+                tableOrders[tableNumber] = new List<ContractorOrder>();
+            }
+
+            var existingOrder = tableOrders[tableNumber].FirstOrDefault(o => o.Id == data.Id);
+            if (existingOrder != null)
+            {
+                // Mavjud buyurtmani yangilash
+                int index = tableOrders[tableNumber].IndexOf(existingOrder);
+                tableOrders[tableNumber][index] = data;
+            }
+            else
+            {
+                // Yangi buyurtma qo'shish
+                tableOrders[tableNumber].Add(data);
+            }
+            
+            // Update the responsible person name if available
+            if (!string.IsNullOrEmpty(data.Responsible))
+            {
+                lblOfitsiantValue.Text = data.Responsible;
+                
+                // Update the responsible name in TableButtonData too
+                foreach (Button btn in tablesPanel.Children)
+                {
+                    if (btn.Tag is TableButtonData tagData && tagData.TableNumber == tableNumber)
+                    {
+                        tagData.ResponsibleName = data.Responsible;
+                        btn.Tag = tagData;
+                        break;
+                    }
+                }
+            }
+
+            // UI ma'lumotlarini yangilash
+            UpdateUIWithoutFlickering(tableNumber);
+        }
+
+        // Yangi method: UI ma'lumotlarini lippillamay yangilash
+        private void UpdateUIWithoutFlickering(string tableNumber)
+        {
+            if (!tableOrders.TryGetValue(tableNumber, out var orders) || orders == null || !orders.Any())
+                return;
+                
+            var firstOrder = orders.FirstOrDefault();
+            if (firstOrder == null) return;
+            
+            // Mavjud buyurtma elementlarini olish
+            var existingItems = lvItems.Items.OfType<OrderItem>().ToList();
+            var itemsToRemove = new List<OrderItem>();
+            var allItemsById = firstOrder.Tables?
+                .Where(t => t != null && !string.IsNullOrEmpty(t.ProductShortName))
+                .ToDictionary(t => t.Id, t => new OrderItem
+                {
+                    Id = t.Id,
+                    ProductShortName = t.ProductShortName ?? "No Name",
+                    ContractorRequirement = t.ContractorRequirement ?? "No Details",
+                    Quantity = (int)Math.Max(1, t.Quantity),
+                    EstimatedPrice = t.EstimatedPrice,
+                    Amount = t.Amount,
+                    TableNumber = int.TryParse(tableNumber, out int num) ? num : 0
+                });
+            
+            if (allItemsById == null) return;
+            
+            // UI yangilash, lipillamasdan
+            foreach (var existingItem in existingItems)
+            {
+                if (allItemsById.TryGetValue(existingItem.Id, out var updatedItem))
+                {
+                    // Mavjud elementni yangilash
+                    existingItem.Quantity = updatedItem.Quantity;
+                    existingItem.EstimatedPrice = updatedItem.EstimatedPrice;
+                    existingItem.Amount = updatedItem.Amount;
+                    
+                    // Yangilangandan so'ng o'chirib tashlash
+                    allItemsById.Remove(existingItem.Id);
+                }
+                else
+                {
+                    // Endi mavjud bo'lmagan element - o'chirish uchun belgilash
+                    itemsToRemove.Add(existingItem);
+                }
+            }
+            
+            // Endi mavjud bo'lmagan elementlarni o'chirish
+            foreach (var item in itemsToRemove)
+            {
+                lvItems.Items.Remove(item);
+            }
+            
+            // Yangi elementlarni qo'shish
+            foreach (var item in allItemsById.Values)
+            {
+                lvItems.Items.Add(item);
+            }
+            
+            // Qolgan UI elementlarini yangilash
+            int serviceFeePercentage = 0;
+            if (firstOrder.AdditionalPayments != null && firstOrder.AdditionalPayments.Count > 0)
+            {
+                serviceFeePercentage = firstOrder.AdditionalPayments[0].AdditionalPercentage;
+                AppSettings.ServiceFeePercentage = serviceFeePercentage;
+            }
+            
+            // Chegirma qiymatlarini yangilash
+            if (firstOrder.SalePercent > 0)
+            {
+                discountPercentage = firstOrder.SalePercent;
+                discountAmount = firstOrder.SaleAmount;
+                isDiscountPercentage = true;
+            }
+            else if (firstOrder.SaleAmount > 0)
+            {
+                discountAmount = firstOrder.SaleAmount;
+                discountPercentage = 0;
+                isDiscountPercentage = false;
+            }
+            
+            // UI elementlarini yangilash
+            lblAmountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.Amount)} so'm";
+            lblAdditinalPaymentValue.Text = $"{AppSettings.FormatCurrency(firstOrder.AdditinalPayment)} so'm ({serviceFeePercentage}%)";
+            
+            if (firstOrder.SaleAmount > 0 || firstOrder.SalePercent > 0)
+            {
+                if (firstOrder.SalePercent > 0)
+                {
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.SaleAmount)} so'm ({firstOrder.SalePercent}%)";
+                }
+                else
+                {
+                    lblDiscountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.SaleAmount)} so'm";
+                }
+            }
+            
+            lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(firstOrder.TotalAmount)} so'm";
+            
+            if (!string.IsNullOrEmpty(firstOrder.EstimatedPaymentType))
+            {
+                lblPaymentMethod.Text = firstOrder.EstimatedPaymentType;
+            }
+            
+            // ListView ni yangilash
+            lvItems.Items.Refresh();
+        }
+
+        // Yangi method: To'lov turi ma'lumotlarini lippillamay yangilash
+        private async Task UpdateServiceFeePercentageFromApi(bool updateUI = true)
         {
             try
             {
@@ -650,11 +951,9 @@ namespace Restaurants.Classes
                 
                 using (HttpClient client = new HttpClient())
                 {
-                    // Set headers
                     client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
                     client.DefaultRequestHeaders.Add("accept", "text/plain");
                     
-                    // Create request body
                     var requestData = new
                     {
                         search = (string)null,
@@ -664,10 +963,7 @@ namespace Restaurants.Classes
                         pageSize = 0
                     };
                     
-                    // Convert request to JSON
                     var content = new StringContent(JsonConvert.SerializeObject(requestData), Encoding.UTF8, "application/json");
-                    
-                    // Send request
                     HttpResponseMessage response = await client.PostAsync("https://crm-api.webase.uz/crm/AdditionalPayment/GetList", content);
                     
                     if (response.IsSuccessStatusCode)
@@ -677,19 +973,13 @@ namespace Restaurants.Classes
                         
                         if (result != null && result.Rows != null && result.Rows.Count > 0)
                         {
-                            // Get first row as requested
                             var firstPayment = result.Rows[0];
+                            AppSettings.ServiceFeePercentage = firstPayment.Percentage;
                             
-                            // Update the local service fee percentage if it's different
-                            if (AppSettings.ServiceFeePercentage != firstPayment.Percentage)
+                            // Faqat kerak bo'lganda UI ni yangilash
+                            if (updateUI && !string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
                             {
-                                AppSettings.ServiceFeePercentage = firstPayment.Percentage;
-                                
-                                // If a table is selected, refresh its display to show updated service fee
-                                if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
-                                {
-                                    LoadTableOrders(currentSelectedTable);
-                                }
+                                UpdateUIWithoutFlickering(currentSelectedTable);
                             }
                         }
                     }
@@ -699,6 +989,31 @@ namespace Restaurants.Classes
             {
                 Console.WriteLine($"Error updating service fee from API: {ex.Message}");
             }
+        }
+
+        // Yangi method: Tugmachalar holatini lippillamay yangilash
+        private void UpdateButtonStatesSilently()
+        {
+            bool hasItems = false;
+            bool hasPaymentMethod = false;
+
+            if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1" &&
+                tableOrders.TryGetValue(currentSelectedTable, out var orders) && orders != null && orders.Any())
+            {
+                hasItems = true;
+                var order = orders.FirstOrDefault();
+                if (order != null)
+                {
+                    hasPaymentMethod = !string.IsNullOrEmpty(order.EstimatedPaymentType);
+                }
+            }
+
+            // Tugmachalar holatini yangilash
+            if (btnChangePaymentMethod.IsEnabled != hasItems)
+                btnChangePaymentMethod.IsEnabled = hasItems;
+                
+            if (btnPrint.IsEnabled != (hasItems && hasPaymentMethod))
+                btnPrint.IsEnabled = hasItems && hasPaymentMethod;
         }
 
         private void Timer_Tick(object sender, EventArgs e)
@@ -1216,7 +1531,7 @@ namespace Restaurants.Classes
                 UpdateTableButtonStyle(tableNumber, data);
             }
 
-            // Agar joriy tanlangan stol bo'lsa, uni yangilash
+            // Agar joriy tanlangan stol bo'lsa, UI ni yangilash
             if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
             {
                 // Faqat stolga tegishli buyurtmalar mavjud bo'lsa, yangilaymiz
@@ -1343,33 +1658,16 @@ namespace Restaurants.Classes
                     lblDiscountValue.Text = $"{AppSettings.FormatCurrency(order.SaleAmount)} so'm";
                 }
             }
-            else
-            {
-                lblDiscountValue.Text = "0 so'm";
-            }
             
-            // Show final amount from server
             lblTotalAmountValue.Text = $"{AppSettings.FormatCurrency(order.TotalAmount)} so'm";
-
-            // To'lov usulini yangilash
+            
             if (!string.IsNullOrEmpty(order.EstimatedPaymentType))
             {
                 lblPaymentMethod.Text = order.EstimatedPaymentType;
-                lblPaymentMethod.Foreground = new SolidColorBrush(Colors.Green);
-                PaymentMethodBorder.Background = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(1, 1),
-                    GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(Color.FromRgb(200, 230, 201), 0),
-                        new GradientStop(Color.FromRgb(165, 214, 167), 1)
-                    }
-                };
             }
-
+            
+            // ListView ni yangilash
             lvItems.Items.Refresh();
-            UpdateButtonStates();
         }
 
         private async void btnChangeDiscount_Click(object sender, RoutedEventArgs e)
@@ -1995,4 +2293,37 @@ namespace Restaurants.Classes
         public int StateId { get; set; }
         public string State { get; set; }
     }
+
+    // FontSize Converter for responsive UI - commented out as we're using fixed font sizes
+    /*
+    public class WidthToFontSizeConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is double width && parameter is string paramValues)
+            {
+                string[] sizes = paramValues.Split(',');
+                
+                if (sizes.Length >= 3 && double.TryParse(sizes[0], out double largeSize) &&
+                   double.TryParse(sizes[1], out double mediumSize) &&
+                   double.TryParse(sizes[2], out double smallSize))
+                {
+                    if (width > 300)
+                        return largeSize;
+                    else if (width > 200)
+                        return mediumSize;
+                    else
+                        return smallSize;
+                }
+                return 14; // Default size
+            }
+            return 14; // Default size
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    */
 }

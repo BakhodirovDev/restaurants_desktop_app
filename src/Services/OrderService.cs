@@ -1,12 +1,7 @@
 using Newtonsoft.Json;
 using Restaurants.Class.ContractorOrder_Get;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 
 namespace Restaurants.Services
 {
@@ -55,6 +50,7 @@ namespace Restaurants.Services
                 endDate = order.EndDate,
                 estimatedPaymentTypeId = order.EstimatedPaymentTypeId,
                 responsibleId = order.ResponsibleId,
+                callPriorityId = order.CallPriorityId,
                 currencyId = order.CurrencyId,
                 isForManReport = order.IsForManReport,
                 organizationAreasOfActivityId = order.OrganizationAreasOfActivityId,
@@ -62,6 +58,10 @@ namespace Restaurants.Services
                 contractorId = order.ContractorId,
                 isCreateManufacturingReport = order.IsCreateManufacturingReport,
                 details = order.Details,
+                locationUrl = order.LocationUrl,
+                additionalQuantity = order.AdditionalQuantity,
+                saleAmount = order.SaleAmount,
+                salePercent = order.SalePercent,
                 tables = (from t in order.Tables
                          where t.Id != itemId || defectiveQuantity < t.Quantity
                          select new
@@ -86,7 +86,8 @@ namespace Restaurants.Services
                     additionalPaymentId = p.AdditionalPaymentId,
                     amount = p.Amount,
                     details = p.Details
-                }).ToList()
+                }).ToList(),
+
             };
 
             // Send API request to update order
