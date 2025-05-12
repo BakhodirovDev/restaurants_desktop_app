@@ -1,6 +1,4 @@
 ﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Restaurants;
 using Restaurants.Class;
 using Restaurants.Class.Contractor_GetList;
 using Restaurants.Class.ContractorOrder_Get;
@@ -10,17 +8,12 @@ using Restaurants.Pages;
 using Restaurants.Pages.Windows;
 using Restaurants.Printer;
 using Restaurants.Services;
-using System.Drawing.Printing;
-using System.Globalization;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using static Restaurants.Pages.Windows.PaymentTypes;
 
 namespace Restaurants.Classes
 {

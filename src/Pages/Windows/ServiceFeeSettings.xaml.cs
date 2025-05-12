@@ -143,7 +143,8 @@ namespace Restaurants.Pages.Windows
                                 code = firstPayment.Code,
                                 shortName = firstPayment.ShortName,
                                 fullName = firstPayment.FullName,
-                                percentage = percentage
+                                percentage = percentage,
+                                isAutoAdd = true
                             };
 
                             var createContent = new StringContent(JsonConvert.SerializeObject(newServiceFee), Encoding.UTF8, "application/json");
@@ -185,12 +186,15 @@ namespace Restaurants.Pages.Windows
             {
                 using (HttpClient client = new HttpClient())
                 {
-                    // Set headers
+                    // Set headers  
                     client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
                     client.DefaultRequestHeaders.Add("accept", "text/plain");
 
-                    // Send delete request
-                    HttpResponseMessage response = await client.DeleteAsync($"https://crm-api.webase.uz/crm/AdditionalPayment/Delete/{id}");
+                    // Create request content (even if empty, PostAsync requires content)  
+                    var content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+
+                    // Send delete request  
+                    HttpResponseMessage response = await client.PostAsync($"https://crm-api.webase.uz/crm/AdditionalPayment/Delete/{id}", content);
 
                     if (!response.IsSuccessStatusCode)
                     {
