@@ -210,7 +210,6 @@ namespace Restaurants.Classes
                         TableNumber = tableName,
                         ContractorId = table.Id,
                         NotCompletedOrderId = table.NotCompletedOrderId,
-                        OrderCountText = orderCountText,
                         ResponsibleName = responsibleName
                     }
                 };
@@ -528,7 +527,7 @@ namespace Restaurants.Classes
                 int completedProductsCount = order.CompletedProductsCount;
                 bool isBusy = productsCount > 0 && (order.StatusId != 3);
 
-                tagData.OrderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
+                // Remove OrderCountText assignment
                 btn.Tag = tagData;
 
                 ApplyTableStyle(btn, isBusy, tableNumber == currentSelectedTable);
@@ -610,8 +609,7 @@ namespace Restaurants.Classes
                 {
                     int productsCount = data.TotalProductsCount;
                     int completedProductsCount = data.CompletedProductsCount;
-                    string orderCountText = productsCount > 0 ? $"{completedProductsCount}/{productsCount}" : "0/0";
-                    tagData.OrderCountText = orderCountText;
+                    // Remove OrderCountText assignment
                     bool isBusy = productsCount > 0 && (data.StatusId != 3);
                     ApplyTableStyle(btn, isBusy, true);
                     break;
@@ -1777,7 +1775,6 @@ namespace Restaurants.Classes
                                 // Update UI
                                 LoadTableOrders(currentSelectedTable);
                                 lblDiscountValue.Text = $"{AppSettings.FormatCurrency(discountAmount)} so'm";
-                                MessageBox.Show("Chegirma muvaffaqiyatli saqlandi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
                             }
                             else
                             {

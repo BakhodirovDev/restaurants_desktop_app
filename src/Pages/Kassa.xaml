@@ -107,9 +107,6 @@
                                 <TextBlock Text="{TemplateBinding Content}" FontSize="20" FontWeight="Bold" 
                                          Foreground="White" HorizontalAlignment="Center" 
                                          VerticalAlignment="Center" Margin="8,4"/>
-                                <TextBlock x:Name="CountTextBlock" Text="{Binding Tag.OrderCountText, RelativeSource={RelativeSource TemplatedParent}}" 
-                                         FontSize="14" Foreground="White" Margin="0,0,10,10"
-                                         HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
                                 <TextBlock x:Name="NameTextBlock" Text="{Binding Tag.ResponsibleName, RelativeSource={RelativeSource TemplatedParent}}" 
                                          FontSize="12" Foreground="White" Margin="10,10,0,0"
                                          HorizontalAlignment="Left" VerticalAlignment="Top"/>
@@ -128,7 +125,6 @@
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Stol (Band)" FontSize="12" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
                                 <TextBlock Text="{TemplateBinding Content}" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{TemplateBinding Tag}" FontSize="12" Foreground="White" HorizontalAlignment="Center" TextAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -152,7 +148,6 @@
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Stol" FontSize="12" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,5"/>
                                 <TextBlock Text="{TemplateBinding Content}" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{TemplateBinding Tag}" FontSize="12" Foreground="White" HorizontalAlignment="Center" TextAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -176,7 +171,6 @@
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Stol (Band)" FontSize="12" Foreground="Black" HorizontalAlignment="Center" Margin="0,0,0,5"/>
                                 <TextBlock Text="{TemplateBinding Content}" FontSize="16" FontWeight="Bold" Foreground="Black" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{TemplateBinding Tag}" FontSize="12" Foreground="Black" HorizontalAlignment="Center" TextAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
