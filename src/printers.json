@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "RAW:192.168.0.150:9100",
+    "Description": "Qo\u0027lda qo\u0027shilgan printer",
+    "Location": "Tarmoq",
+    "IpAddress": "192.168.0.150",
+    "Port": 9100,
+    "Status": "Mavjud - Ulanmagan",
+    "ConnectionType": "Ethernet",
+    "IsNetworkPrinter": true,
+    "IsDefault": true,
+    "DriverName": "",
+    "Model": "Termal printer (ESC/POS)"
+  }
+]

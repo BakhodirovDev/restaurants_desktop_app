@@ -1,9 +1,10 @@
 ﻿using Newtonsoft.Json;
+using Restaurants.Printer;
 using System.Windows.Documents;
 
 namespace Restaurants.Class.ContractorOrder_Get;
 
-public class ContractorOrderTable
+public class ContractorOrderTable : IPrintableKitchenItem
 {
     public string ProductShortName { get; set; }
     public string ProductCode { get; set; }

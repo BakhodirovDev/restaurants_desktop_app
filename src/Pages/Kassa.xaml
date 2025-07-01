@@ -211,6 +211,16 @@
             </Setter>
         </Style>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <Style TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" 
+                    Value="{Binding HorizontalContentAlignment, 
+                           RelativeSource={RelativeSource FindAncestor, 
+                           AncestorType={x:Type ListView}}}" />
+            <Setter Property="VerticalContentAlignment" 
+                    Value="{Binding VerticalContentAlignment, 
+                           RelativeSource={RelativeSource FindAncestor, 
+                           AncestorType={x:Type ListView}}}" />
+        </Style>
     </Window.Resources>
 
     <Grid Margin="0">
@@ -239,6 +249,8 @@
                         <TextBlock x:Name="lblRealTime" FontSize="22" FontWeight="Bold" Foreground="#212529" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="btnPrinterSettings" Content="Printer sozlamalari" Width="150" Height="40" Click="btnPrinterSettings_Click"
+                                Background="#673AB7" Style="{StaticResource ActionButtonStyle}" Margin="0,0,10,0"/>
                         <Button x:Name="btnSettings" Content="Sozlamalar" Width="120" Height="40" Click="btnSettings_Click"
                                 Background="#2196F3" Style="{StaticResource ActionButtonStyle}" Margin="0,0,10,0"/>
                         <Button x:Name="btnLogout" Content="Chiqish" Width="100" Height="40" Click="btnLogout_Click"

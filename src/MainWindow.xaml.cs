@@ -94,51 +94,59 @@ namespace Restaurants
                     string jsonResponse = await response.Content.ReadAsStringAsync();
                     var loginResponse = JsonSerializer.Deserialize<LoginResponse>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                    // Save tokens
-                    Settings.Default.AccessToken = loginResponse.AccessToken;
-                    Settings.Default.RefreshToken = loginResponse.RefreshToken;
-                    Settings.Default.accessTokenExpireAt = loginResponse.AccessTokenExpireAt.ToString();
-                    Settings.Default.refreshTokenExpireAt = loginResponse.RefreshTokenExpireAt.ToString();
-                    Settings.Default.Save();
-
-                    // Update HttpClient with the new token
-                    _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
-
-                    int permissionCount = 0;
-
-                    List<string> permissions = new List<string>()
+                    if (loginResponse?.AccessToken != null && loginResponse.UserInfo?.Modules != null)
                     {
-                        "ContractorView",
-                        "ContractorOrderView",
-                        "ContractorOrderComplete"
-                    };
+                        // save tokens
+                        Settings.Default.AccessToken = loginResponse.AccessToken;
+                        Settings.Default.RefreshToken = loginResponse.RefreshToken;
+                        Settings.Default.accessTokenExpireAt = loginResponse.AccessTokenExpireAt.ToString();
+                        Settings.Default.refreshTokenExpireAt = loginResponse.RefreshTokenExpireAt.ToString();
+                        Settings.Default.Save();
 
-                    foreach (var modul in loginResponse.UserInfo.Modules)
-                    {
-                        for (int i = 0; i < permissions.Count; i++)
+                        // update httpclient with the new token
+                        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
+
+                        int permissionCount = 0;
+
+                        List<string> permissions = new List<string>()
                         {
-                            if (modul == permissions[i])
+                            "ContractorView",
+                            "ContractorOrderView",
+                            "ContractorOrderComplete"
+                        };
+
+                        foreach (var modul in loginResponse.UserInfo.Modules)
+                        {
+                            if (modul != null)
                             {
-                                permissionCount ++;
-                                break;
+                                for (int i = 0; i < permissions.Count; i++)
+                                {
+                                    if (modul.ToString() == permissions[i])
+                                    {
+                                        permissionCount++;
+                                        break;
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    if (permissions.Count == permissionCount)
-                    {
-                        Kassa print = new Kassa(_httpClient, _xPrinter);
-                        print.Show();
-                        Close();
+                        if (permissions.Count == permissionCount)
+                        {
+                            Kassa print = new Kassa(_httpClient, _xPrinter);
+                            print.Show();
+                            Close();
+                        }
+                        else
+                        {
+                            MessageBox.Show("ushbu dasturga kirish uchun sizda ruxsat yo'q.", "permission denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            Settings.Default.Reset();
+                        }
                     }
                     else
                     {
-                        MessageBox.Show("Ushbu dasturga kirish uchun sizda ruxsat yo'q.", "Permission Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        Settings.Default.Reset();
+                        MessageBox.Show("login ma'lumotlari noto'g'ri", "xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
-
-
-                    }
+                }
                 else
                 {
                     PasswordBox.Clear();

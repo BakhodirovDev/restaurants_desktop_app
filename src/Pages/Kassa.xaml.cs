@@ -51,7 +51,7 @@ namespace Restaurants.Classes
             timeTimer.Start();
 
             timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromSeconds(3);
+            timer.Interval = TimeSpan.FromSeconds(5); // increased from 3 to 5 seconds for better performance
             timer.Tick += Timer_Tick;
 
             this.Loaded += Window_Loaded;
@@ -71,15 +71,31 @@ namespace Restaurants.Classes
         {
             try
             {
+                // create and initialize printerservice
+                var printerService = new PrinterService();
+                _orderService.SetPrinterService(printerService);
+                
+                // create and initialize productcategoryservice
+                var productCategoryService = new ProductCategoryService(_httpClient);
+                _orderService.SetProductCategoryService(productCategoryService);
+                
+                // create and initialize local storage service
+                var localStorageService = new Services.LocalStorageService();
+                _orderService.SetLocalStorageService(localStorageService);
+                
+                // log initialization
+                System.Diagnostics.Debug.WriteLine("printerservice, productcategoryservice va localstorageservice initialized in kassa window_loaded");
+                
                 await LoadTablesAsync();
                 await GetData();
                 
-                // Start auto-refresh timer
+                // start auto-refresh timer
                 timer.Start();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ilova ochilishida xatolik: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                Services.ErrorHandlingService.ShowErrorOnce("Window-Loaded-Error", 
+                    $"ilova ochilishida xatolik: {ex.Message}");
             }
         }
 
@@ -161,15 +177,18 @@ namespace Restaurants.Classes
             }
             catch (HttpRequestException ex)
             {
-                MessageBox.Show($"Network error loading tables: {ex.Message}", "Network Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Services.ErrorHandlingService.ShowErrorOnce("Network-Error-Tables", 
+                    $"tarmoq xatoligi: {ex.Message}");
             }
             catch (JsonException ex)
             {
-                MessageBox.Show($"Error parsing table data: {ex.Message}", "Parse Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Services.ErrorHandlingService.ShowErrorOnce("Parse-Error-Tables", 
+                    $"ma'lumotlarni tahlil qilishda xatolik: {ex.Message}");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Unexpected error loading tables: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Services.ErrorHandlingService.ShowErrorOnce("Unexpected-Error-Tables", 
+                    $"kutilmagan xatolik: {ex.Message}");
             }
         }
 
@@ -487,9 +506,6 @@ namespace Restaurants.Classes
 
         private void ProcessApiData(ContractorOrder data)
         {
-            if (data == null) return;
-
-            // Clear existing tables data to ensure complete refresh
             tableOrders.Clear();
             
             // Process each table in the order
@@ -515,6 +531,9 @@ namespace Restaurants.Classes
             {
                 LoadTableOrders(currentSelectedTable);
             }
+            
+            // Check for new items and print them automatically
+            _ = _orderService.CheckAndPrintNewItemsAsync(data);
         }
 
         private void UpdateTableButtonStyle(string tableNumber, ContractorOrder order)
@@ -617,11 +636,16 @@ namespace Restaurants.Classes
             }
 
             LoadTableOrders(tableNumber);
+            
+            // Check for new items and print them automatically
+            _ = _orderService.CheckAndPrintNewItemsAsync(data);
         }
 
         private async Task SmoothAutoRefresh()
         {
             try {
+                System.Diagnostics.Debug.WriteLine($"avtomatik yangilanish boshlandi: {DateTime.Now:HH:mm:ss}");
+                
                 // Foydalanuvchiga bilinmasdan, orqa fonda ma'lumotlarni yangilash
                 
                 // Fetch and update service fee percentage without UI updates
@@ -629,14 +653,25 @@ namespace Restaurants.Classes
                 
                 // Yangi ma'lumotlarni olib, lekin UI ni tozalamay yangilash
                 var data1 = await ContractorOrderGet();
-                if (data1 == null) return;
+                if (data1 == null) 
+                {
+                    System.Diagnostics.Debug.WriteLine("contractororderget null qaytardi");
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"api dan ma'lumot olindi: {data1.Tables?.Count ?? 0} ta stol");
 
                 // Mavjud ma'lumotlarni foydalanuvchiga bilintirmasdan yangilash
                 ProcessApiDataSilently(data1);
                 
+                // YANGI: Barcha stollar uchun avtomatik chop etish (stolni tanlamagan holatda ham)
+                await ProcessAllTablesForAutoPrint();
+                
                 // Tanlangan stol uchun ma'lumotlarni foydalanuvchiga bilintirmasdan yangilash
                 if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
                 {
+                    System.Diagnostics.Debug.WriteLine($"tanlangan stol uchun ma'lumot yangilanmoqda: {currentSelectedTable}");
+                    
                     var selectedButton = tablesPanel.Children.OfType<Button>()
                         .FirstOrDefault(b => b.Tag is TableButtonData td && td.TableNumber == currentSelectedTable);
                     
@@ -646,6 +681,7 @@ namespace Restaurants.Classes
                         var refreshedOrder = await ContractorOrderGetById(btnData.NotCompletedOrderId.Value);
                         if (refreshedOrder != null)
                         {
+                            System.Diagnostics.Debug.WriteLine($"tanlangan stol uchun yangi ma'lumot olindi: order {refreshedOrder.Id}");
                             // Process the refreshed data without flickering
                             ProcessTableDataSilently(refreshedOrder);
                         }
@@ -657,8 +693,11 @@ namespace Restaurants.Classes
                 
                 // Update button states without UI flickering
                 UpdateButtonStatesSilently();
+                
+                System.Diagnostics.Debug.WriteLine($"avtomatik yangilanish tugadi: {DateTime.Now:HH:mm:ss}");
             }
             catch (Exception ex) {
+                System.Diagnostics.Debug.WriteLine($"avtomatik yangilanishda xatolik: {ex.Message}");
                 Console.WriteLine($"Silent auto refresh error: {ex.Message}");
             }
         }
@@ -719,10 +758,15 @@ namespace Restaurants.Classes
         // Yangi method: Orqa fonda ma'lumotlarni yangilash, UI ga ta'sir qilmay
         private void ProcessApiDataSilently(ContractorOrder data)
         {
-            if (data == null) return;
-            
-            // Process each table in the order
-            foreach (var table in data.Tables ?? new List<ContractorOrderTable>())
+            if (data == null || data.Tables == null || !data.Tables.Any()) 
+            {
+                System.Diagnostics.Debug.WriteLine("processapidatasilently: data null yoki bo'sh");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"processapidatasilently: {data.Tables.Count} ta stol ma'lumoti qayta ishlanmoqda");
+
+            foreach (var table in data.Tables)
             {
                 string tableNumber = table.OrderNumber.ToString();
                 if (string.IsNullOrEmpty(tableNumber)) continue;
@@ -732,31 +776,37 @@ namespace Restaurants.Classes
                     tableOrders[tableNumber] = new List<ContractorOrder>();
                 }
 
+                // Update or add the order data
                 var existingOrder = tableOrders[tableNumber].FirstOrDefault(o => o.Id == data.Id);
                 if (existingOrder != null)
                 {
-                    // Mavjud buyurtmani yangilash
+                    // Replace existing order with updated one
                     int index = tableOrders[tableNumber].IndexOf(existingOrder);
                     tableOrders[tableNumber][index] = data;
+                    System.Diagnostics.Debug.WriteLine($"stol {tableNumber} uchun mavjud order yangilandi: {data.Id}");
                 }
                 else
                 {
-                    // Yangi buyurtma qo'shish
+                    // Add new order
                     tableOrders[tableNumber].Add(data);
+                    System.Diagnostics.Debug.WriteLine($"stol {tableNumber} uchun yangi order qo'shildi: {data.Id}");
                 }
 
-                // Update the table button UI silently
+                // Update button style without UI flickering
                 UpdateTableButtonStyleSilently(tableNumber, data);
             }
 
-            // Agar joriy tanlangan stol bo'lsa, UI ni yangilash
-            if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1")
+            // If the current table is affected, update its UI without flickering
+            if (!string.IsNullOrEmpty(currentSelectedTable) && currentSelectedTable != "-1" &&
+                data.Tables.Any(t => t.OrderNumber.ToString() == currentSelectedTable))
             {
-                if (tableOrders.ContainsKey(currentSelectedTable) && tableOrders[currentSelectedTable].Any())
-                {
-                    UpdateUIWithoutFlickering(currentSelectedTable);
-                }
+                System.Diagnostics.Debug.WriteLine($"tanlangan stol {currentSelectedTable} uchun ui yangilanmoqda");
+                UpdateUIWithoutFlickering(currentSelectedTable);
             }
+            
+            // Check for new items and print them individually (silent refresh)
+            System.Diagnostics.Debug.WriteLine($"avtomatik individual chop etish tekshirilmoqda: order {data.Id}");
+            _ = _orderService.CheckAndPrintNewItemsIndividuallyAsync(data);
         }
 
         // Yangi method: Tugmacha stilini lippillamay yangilash
@@ -788,25 +838,26 @@ namespace Restaurants.Classes
         // Yangi method: Stol ma'lumotlarini lippillamay yangilash
         private void ProcessTableDataSilently(ContractorOrder data)
         {
-            if (data == null) data = new ContractorOrder();
+            if (data == null) return;
 
             string tableNumber = currentSelectedTable;
-
+            
             if (!tableOrders.ContainsKey(tableNumber))
             {
                 tableOrders[tableNumber] = new List<ContractorOrder>();
             }
 
+            // Update or add the order data
             var existingOrder = tableOrders[tableNumber].FirstOrDefault(o => o.Id == data.Id);
             if (existingOrder != null)
             {
-                // Mavjud buyurtmani yangilash
+                // Replace existing order with updated one
                 int index = tableOrders[tableNumber].IndexOf(existingOrder);
                 tableOrders[tableNumber][index] = data;
             }
             else
             {
-                // Yangi buyurtma qo'shish
+                // Add new order
                 tableOrders[tableNumber].Add(data);
             }
             
@@ -826,8 +877,11 @@ namespace Restaurants.Classes
                     }
                 }
             }
-
-            // UI ma'lumotlarini yangilash
+            
+            // Check for new items and print them individually (for table data refresh)
+            _ = _orderService.CheckAndPrintNewItemsIndividuallyAsync(data);
+            
+            // Update UI elements with the latest data
             UpdateUIWithoutFlickering(tableNumber);
         }
 
@@ -1002,7 +1056,7 @@ namespace Restaurants.Classes
                 var order = orders.FirstOrDefault();
                 if (order != null)
                 {
-                    hasPaymentMethod = !string.IsNullOrEmpty(order.EstimatedPaymentType);
+                    hasPaymentMethod = !string.IsNullOrEmpty(order.EstimatedPaymentType); // To'lov turi mavjudligini tekshirish
                 }
             }
 
@@ -1016,38 +1070,45 @@ namespace Restaurants.Classes
 
         private void Timer_Tick(object sender, EventArgs e)
         {
+            // Run both smooth refresh and parallel monitoring
             _ = SmoothAutoRefresh();
+            _ = ProcessAllTablesForAutoPrint();
         }
 
-        private void btnPrint_Click(object sender, RoutedEventArgs e)
+        private async void btnPrint_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(currentSelectedTable) || currentSelectedTable == "-1")
-            {
-                MessageBox.Show("Chop etish uchun stol tanlang", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            if (!tableOrders.TryGetValue(currentSelectedTable, out var orders) || orders == null || !orders.Any())
-            {
-                MessageBox.Show("Tanlangan stolda buyurtmalar mavjud emas", "Xabar", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
             try
             {
-                var currentOrder = orders.FirstOrDefault();
-                if (currentOrder == null)
+                // show loading indicator
+                ShowLoading("chop etilmoqda...");
+                
+                // get the current order
+                var order = GetCurrentOrder();
+                if (order == null)
                 {
-                    MessageBox.Show("Buyurtma ma'lumotlari topilmadi", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                    HideLoading();
+                    Services.ErrorHandlingService.ShowErrorOnce("Order-Data-Missing", 
+                        "buyurtma ma'lumotlari mavjud emas");
                     return;
                 }
-
-                var printOrder = CreatePrintOrder(currentOrder);
-                _printer.PrintText(printOrder);
+                
+                // use the order service to print the order (it will use the default printer)
+                bool success = await _orderService.PrintOrderAsync(order);
+                
+                HideLoading();
+                
+                if (!success)
+                {
+                    // error message is already shown by the orderservice
+                    System.Diagnostics.Debug.WriteLine("buyurtmani chop etib bo'lmadi");
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Chop etishda xatolik yuz berdi: {ex.Message}", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                HideLoading();
+                System.Diagnostics.Debug.WriteLine($"chop etishda xatolik: {ex.Message}");
+                Services.ErrorHandlingService.ShowErrorOnce($"Print-Error-{currentSelectedTable}", 
+                    $"buyurtmani chop etishda xatolik: {ex.Message}");
             }
         }
 
@@ -1060,7 +1121,7 @@ namespace Restaurants.Classes
             {
                 additionalPercentage = order.AdditionalPayments[0].AdditionalPercentage;
             }
-            
+
             // Use all values from the backend directly without recalculation
             return new PrintOrder
             {
@@ -1091,7 +1152,8 @@ namespace Restaurants.Classes
                 IsDiscountPercentage = order.SalePercent > 0,
                 GrandTotal = order.TotalAmount,
                 AdditionalPercentage = additionalPercentage,
-                PaymentTypeText = order.EstimatedPaymentType ?? "Naqd"
+                PaymentTypeText = order.EstimatedPaymentType ?? "Naqd",
+                PaymentTypeId = order.EstimatedPaymentTypeId
             };
         }
 
@@ -1284,7 +1346,7 @@ namespace Restaurants.Classes
             }
         }
 
-        private async Task<string> EnsureValidTokenAsync()
+        private async Task<string?> EnsureValidTokenAsync()
         {
             string token = Settings.Default.AccessToken;
 
@@ -2260,11 +2322,144 @@ namespace Restaurants.Classes
                 }
             }
         }
+
+        private void btnPrinterSettings_Click(object sender, RoutedEventArgs e)
+        {
+            // Create blur effect for the main window
+            System.Windows.Media.Effects.BlurEffect blurEffect = new System.Windows.Media.Effects.BlurEffect
+            {
+                Radius = 10,
+                KernelType = System.Windows.Media.Effects.KernelType.Gaussian
+            };
+
+            // Apply blur effect to the content
+            this.Effect = blurEffect;
+
+            // Create semi-transparent overlay
+            Grid overlay = new Grid
+            {
+                Background = new SolidColorBrush(Color.FromArgb(100, 0, 0, 0)),
+                Opacity = 0.5,
+                IsHitTestVisible = true
+            };
+            
+            // Add overlay to the window
+            Grid.SetRowSpan(overlay, 100);
+            Grid.SetColumnSpan(overlay, 100);
+            Grid.SetZIndex(overlay, 1000);
+            
+            // Get main grid from the window
+            var mainGrid = this.Content as Grid;
+            mainGrid?.Children.Add(overlay);
+
+            // Create and show printer settings window
+            var printerWindow = new PrinterService();
+            printerWindow.Owner = this;
+            
+            // Set the PrinterService instance to the OrderService
+            _orderService.SetPrinterService(printerWindow);
+            
+            // When printer settings window closes, remove blur and overlay
+            printerWindow.Closed += (s, args) => 
+            {
+                this.Effect = null;
+                mainGrid?.Children.Remove(overlay);
+            };
+            
+            // Show printer settings dialog
+            printerWindow.ShowDialog();
+        }
+
+        /// <summary>
+        /// Gets the current order for printing
+        /// </summary>
+        private PrintOrder GetCurrentOrder()
+        {
+            if (string.IsNullOrEmpty(currentSelectedTable) || currentSelectedTable == "-1")
+            {
+                System.Diagnostics.Debug.WriteLine("stol tanlanmagan");
+                return null;
+            }
+
+            if (!tableOrders.TryGetValue(currentSelectedTable, out var orders) || orders == null || !orders.Any())
+            {
+                System.Diagnostics.Debug.WriteLine("tanlangan stolda buyurtmalar mavjud emas");
+                return null;
+            }
+
+            var currentOrder = orders.FirstOrDefault();
+            if (currentOrder == null)
+            {
+                System.Diagnostics.Debug.WriteLine("buyurtma ma'lumotlari topilmadi");
+                return null;
+            }
+
+            return CreatePrintOrder(currentOrder);
+        }
+
+        /// <summary>
+        /// Shows a loading indicator with the specified message
+        /// </summary>
+        private void ShowLoading(string message)
+        {
+            // If you have a loading panel in your UI, you can show it here
+            // For example:
+            // loadingPanel.Visibility = Visibility.Visible;
+            // loadingMessage.Text = message;
+            
+            // Update window title to show loading status
+            this.Title = $"Yuklanyapti... {message}";
+            
+            System.Diagnostics.Debug.WriteLine($"Loading: {message}");
+        }
+
+        /// <summary>
+        /// Hides the loading indicator
+        /// </summary>
+        private void HideLoading()
+        {
+            // If you have a loading panel in your UI, you can hide it here
+            // For example:
+            // loadingPanel.Visibility = Visibility.Collapsed;
+            
+            // Restore window title
+            this.Title = "Kassa";
+            
+            System.Diagnostics.Debug.WriteLine("Loading hidden");
+        }
+
+        /// <summary>
+        /// Processes all tables for automatic printing - monitors all tables even when none is selected
+        /// </summary>
+        private async Task ProcessAllTablesForAutoPrint()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("barcha stollar uchun avtomatik chop etish boshlandi");
+                
+                // Get token for API calls
+                string token = await EnsureValidTokenAsync();
+                if (string.IsNullOrEmpty(token))
+                {
+                    System.Diagnostics.Debug.WriteLine("token olinmadi, avtomatik chop etish to'xtatildi");
+                    return;
+                }
+                
+                // Use OrderService's ProcessAllTablesForAutoPrint which handles local storage comparison
+                await _orderService.ProcessAllTablesForAutoPrint(token);
+                
+                System.Diagnostics.Debug.WriteLine("barcha stollar uchun avtomatik chop etish tugadi");
+            }
+            catch (Exception ex)
+            {
+                Services.ErrorHandlingService.LogError("ProcessAllTablesForAutoPrint-Kassa", ex);
+            }
+        }
     }
 
     public class TableButtonData
     {
-        public string TableNumber { get; set; }
+        public string? TableNumber { get; set; }
         public int ContractorId { get; set; }
         public int? NotCompletedOrderId { get; set; }
         public string OrderCountText { get; set; } = "0/0";
@@ -2277,18 +2472,18 @@ namespace Restaurants.Classes
         public int Page { get; set; }
         public int PageSize { get; set; }
         public int Total { get; set; }
-        public List<AdditionalPayment> Rows { get; set; }
+        public List<AdditionalPayment>? Rows { get; set; }
     }
 
     public class AdditionalPayment
     {
         public int Id { get; set; }
-        public string Code { get; set; }
-        public string ShortName { get; set; }
-        public string FullName { get; set; }
+        public string? Code { get; set; }
+        public string? ShortName { get; set; }
+        public string? FullName { get; set; }
         public int Percentage { get; set; }
         public int StateId { get; set; }
-        public string State { get; set; }
+        public string? State { get; set; }
     }
 
     // FontSize Converter for responsive UI - commented out as we're using fixed font sizes
