@@ -1,9 +1,8 @@
-﻿namespace Restaurants.Class
+﻿namespace Restaurants.Class;
+
+public class TableButtonData
 {
-    public class TableButtonData
-    {
-        public int TableNumber { get; set; } // From firstName
-        public int ContractorId { get; set; } // From id
-        public int? NotCompletedOrderId { get; set; } // From notCompletedOrderId
-    }
+    public int TableNumber { get; set; }
+    public int ContractorId { get; set; }
+    public int? NotCompletedOrderId { get; set; }
 }

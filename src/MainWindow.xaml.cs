@@ -1,12 +1,11 @@
 ﻿using Restaurants.Class;
+using Restaurants.Classes;
+using Restaurants.Pages;
 using Restaurants.Printer;
-using System;
-using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -27,13 +26,13 @@ namespace Restaurants
         [DllImport("printer.sdk.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         public static extern int ClosePort(IntPtr intPtr);
 
-
         [DllImport("printer.sdk.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern int CutPaperWithDistance(IntPtr intPtr, int distance);
 
 
         private IntPtr printer;
         private int openStatus = -100;
+
         public MainWindow()
         {
             _xPrinter = new XPrinter();
@@ -47,9 +46,8 @@ namespace Restaurants
             //this.printer = MainWindow.InitPrinter("");
             InitializeComponent();
             //InitializePrinter();
-            AutoLogin();
+            //AutoLogin();
         }
-
 
         public int openPort()
         {
@@ -64,37 +62,6 @@ namespace Restaurants
             catch
             {
                 throw;
-            }
-        }
-
-        private void InitializePrinter()
-        {
-
-            try
-            {
-                openPort();
-
-                if(openStatus == 0)
-                {
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    MainWindow.PrintText(this.printer, "------------------------------------------------\r\n", 0, 0);
-                    MainWindow.FeedLine(this.printer, 1);
-                    var result = MainWindow.CutPaperWithDistance(this.printer, 10);
-
-                    if (result == 0)
-                    {
-                        MessageBox.Show("Urra");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error sending ZPL: " + ex.Message);
             }
         }
 
@@ -127,29 +94,63 @@ namespace Restaurants
                     string jsonResponse = await response.Content.ReadAsStringAsync();
                     var loginResponse = JsonSerializer.Deserialize<LoginResponse>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                    if (loginResponse?.AccessToken == null)
+                    if (loginResponse?.AccessToken != null && loginResponse.UserInfo?.Modules != null)
                     {
-                        MessageBox.Show("Login response invalid.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
+                        // save tokens
+                        Settings.Default.AccessToken = loginResponse.AccessToken;
+                        Settings.Default.RefreshToken = loginResponse.RefreshToken;
+                        Settings.Default.accessTokenExpireAt = loginResponse.AccessTokenExpireAt.ToString();
+                        Settings.Default.refreshTokenExpireAt = loginResponse.RefreshTokenExpireAt.ToString();
+                        Settings.Default.Save();
+
+                        // update httpclient with the new token
+                        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
+
+                        int permissionCount = 0;
+
+                        List<string> permissions = new List<string>()
+                        {
+                            "ContractorView",
+                            "ContractorOrderView",
+                            "ContractorOrderComplete"
+                        };
+
+                        foreach (var modul in loginResponse.UserInfo.Modules)
+                        {
+                            if (modul != null)
+                            {
+                                for (int i = 0; i < permissions.Count; i++)
+                                {
+                                    if (modul.ToString() == permissions[i])
+                                    {
+                                        permissionCount++;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (permissions.Count == permissionCount)
+                        {
+                            Kassa print = new Kassa(_httpClient, _xPrinter);
+                            print.Show();
+                            Close();
+                        }
+                        else
+                        {
+                            MessageBox.Show("ushbu dasturga kirish uchun sizda ruxsat yo'q.", "permission denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            Settings.Default.Reset();
+                        }
                     }
-
-                    // Save tokens
-                    Settings.Default.AccessToken = loginResponse.AccessToken;
-                    Settings.Default.RefreshToken = loginResponse.RefreshToken;
-                    Settings.Default.accessTokenExpireAt = loginResponse.AccessTokenExpireAt.ToString();
-                    Settings.Default.refreshTokenExpireAt = loginResponse.RefreshTokenExpireAt.ToString();
-                    Settings.Default.Save();
-
-                    // Update HttpClient with the new token
-                    _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
-
-                    Print print = new Print(_httpClient, _xPrinter);
-                    print.Show();
-                    Close();
+                    else
+                    {
+                        MessageBox.Show("login ma'lumotlari noto'g'ri", "xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
                 else
                 {
-                    MessageBox.Show($"Login failed: {response.ReasonPhrase}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    PasswordBox.Clear();
+                    MessageBox.Show("Login yoki parol noto'g'ri", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (HttpRequestException ex)
@@ -160,6 +161,11 @@ namespace Restaurants
             {
                 MessageBox.Show($"Unexpected error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
         }
 
         private async Task<string> GetTokenAsync()
@@ -239,11 +245,11 @@ namespace Restaurants
 
             if (!string.IsNullOrEmpty(savedToken) && !string.IsNullOrEmpty(expireAt))
             {
-                // Parse the expiration time (assuming it’s a Unix timestamp or ISO date string)
+                // Parse the expiration time (assuming it's a Unix timestamp or ISO date string)
                 if (IsTokenValid(expireAt))
                 {
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", savedToken);
-                    Print print = new Print(_httpClient, _xPrinter);
+                    Kassa print = new Kassa(_httpClient, _xPrinter);
                     print.Show();
                     Close();
                 }
